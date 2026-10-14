@@ -22,7 +22,7 @@ export interface RenderHtmlOptions {
    *
    * False produces an environment-only page: everything that depends on the
    * BUILD and the ENVIRONMENT (gitCommit, assetManifest, cdnBase, gameEnv,
-   * turnstileSiteKey, jwtAudience) and nothing that depends on which server
+   * jwtAudience) and nothing that depends on which server
    * happens to render it. That page is uploaded once per version to
    * `sites/<site>/v/<short>/index.html` and served by the static Worker to
    * every player of that version, which is only sound if it names no server —
@@ -87,7 +87,6 @@ export async function renderHtmlContent(
     // refs to use this placeholder.
     cdnBaseRaw: cdnBase,
     gameEnv: JSON.stringify(ServerEnv.gameEnvName()),
-    turnstileSiteKey: JSON.stringify(ServerEnv.turnstileSiteKey()),
     jwtAudience: JSON.stringify(ServerEnv.jwtAudience()),
     // Environment-scoped like the two above (so the static per-version page
     // carries it too), but optional: absent when the deployment has no key,

@@ -99,7 +99,6 @@
         assetManifest: <%- assetManifest %>,
         cdnBase: <%- cdnBase %>,
         gameEnv: <%- gameEnv %>,<%- typeof cluster !== "undefined" && cluster ? "\n        cluster: " + cluster + "," : "" %><%- typeof instanceLetter !== "undefined" && instanceLetter ? "\n        instanceLetter: " + instanceLetter + "," : "" %>
-        turnstileSiteKey: <%- turnstileSiteKey %>,
         jwtAudience: <%- jwtAudience %>,<%- typeof stripePublishableKey !== "undefined" && stripePublishableKey ? "\n        stripePublishableKey: " + stripePublishableKey + "," : "" %><%- typeof faroCollectorUrl !== "undefined" && faroCollectorUrl ? "\n        faroCollectorUrl: " + faroCollectorUrl + "," : "" %><%- typeof instanceId !== "undefined" && instanceId ? "\n        instanceId: " + instanceId + "," : "" %><%- typeof serverHost !== "undefined" && serverHost ? "\n        serverHost: " + serverHost + "," : "" %><%- typeof siteHost !== "undefined" && siteHost ? "\n        siteHost: " + siteHost + "," : "" %>
       };
       // Set here rather than from the bundle so the first paint already has the
@@ -124,12 +123,6 @@
       async
     ></script>
 
-    <!-- Cloudflare Turnstile -->
-    <script
-      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-      async
-      defer
-    ></script>
   </head>
 
   <body
@@ -174,11 +167,6 @@
       <desktop-nav-bar
         class="sticky top-[var(--top-ad-height,0px)] z-[60] in-[.page-open]:static"
       ></desktop-nav-bar>
-
-      <div
-        id="turnstile-container"
-        class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-99999"
-      ></div>
 
       <banned-modal></banned-modal>
       <marketing-consent-toast></marketing-consent-toast>

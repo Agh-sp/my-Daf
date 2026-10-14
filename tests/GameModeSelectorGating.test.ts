@@ -163,7 +163,7 @@ describe("shouldBlockMultiplayerAction with a backend outage", () => {
 describe("joinIsGateable", () => {
   // Matchmaking, deep links and the host/join modals all dispatch join-lobby
   // without passing a dimmed button, so the funnel gate is the only thing
-  // standing between a signed-out player and the server's Turnstile close.
+  // that can surface a desktop-session restriction before the join starts.
   it("gates an ordinary multiplayer join", () => {
     expect(joinIsGateable({ gameID: "g1", source: "public" } as any)).toBe(
       true,

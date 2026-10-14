@@ -687,6 +687,7 @@ export const ClientJoinMessageSchema = z.object({
   clanTag: ClanTagSchema,
   // Server replaces the refs with the actual cosmetic data.
   cosmetics: PlayerCosmeticRefsSchema.optional(),
+  // Retained in its current wire slot for compatibility; clients send null.
   turnstileToken: z.string().nullable(),
   // Watch without playing: no spawn, no team, no lobby slot.
   spectator: z.boolean().optional(),

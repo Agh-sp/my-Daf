@@ -105,24 +105,6 @@ describe("ServerEnv game id minting", () => {
   });
 });
 
-describe("ServerEnv.turnstileSiteKey", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  test("returns value when set", () => {
-    vi.stubEnv("TURNSTILE_SITE_KEY", "site-key");
-    expect(ServerEnv.turnstileSiteKey()).toBe("site-key");
-  });
-
-  test("throws when unset", () => {
-    vi.stubEnv("TURNSTILE_SITE_KEY", "");
-    expect(() => ServerEnv.turnstileSiteKey()).toThrow(
-      /TURNSTILE_SITE_KEY not set/,
-    );
-  });
-});
-
 describe("ServerEnv.jwtAudience", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

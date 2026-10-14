@@ -297,8 +297,8 @@ export function reportMultiplayerRefusal(backendOutage: boolean): void {
  * Whether the multiplayer gate applies to a given join at all. Single-player
  * runs entirely in-client and a replay simulates from an archived record, so
  * neither needs a session, an up-to-date build, or a backend that is up.
- * getTurnstileToken in Main.ts exempts the same pair (alongside two
- * conditions irrelevant here), and calls this so the two cannot drift.
+ * Main's join flow does not apply this gate to single-player games or
+ * replays; this helper keeps the desktop-session gate consistent.
  * Exported for tests and kept free of component state, like
  * shouldBlockMultiplayerAction above.
  */

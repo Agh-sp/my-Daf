@@ -72,7 +72,6 @@ function lobbyConfig(gameID: string): LobbyConfig {
     playerClanTag: null,
     playerRole: null,
     gameID,
-    turnstileToken: null,
   };
 }
 

@@ -13,7 +13,7 @@ function makeClient(clientID: string, persistentID: string, ws: MockWs) {
   return harnessClient({ clientID, persistentID, username: "TestUser", ws });
 }
 
-describe("GameServer - wasAdmitted (Turnstile re-admission)", () => {
+describe("GameServer - reconnect admission", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -35,9 +35,8 @@ describe("GameServer - wasAdmitted (Turnstile re-admission)", () => {
     expect(game.wasAdmitted("p1")).toBe(true);
   });
 
-  // Core regression: a lobby-phase disconnect clears the reconnect mapping (to
-  // free the slot), but admission must survive so the reconnect skips the
-  // single-use Turnstile re-check instead of failing on the spent token.
+  // A lobby-phase disconnect clears the reconnect mapping to free the slot,
+  // but the server must retain that the player was already admitted.
   it("keeps a player admitted after a lobby-phase disconnect clears their reconnect mapping", async () => {
     const game = makeGame();
     const ws = makeMockWs();
@@ -82,7 +81,7 @@ describe("GameServer - wasAdmitted (Turnstile re-admission)", () => {
 
     await ws.trigger("close");
 
-    // Still admitted (no Turnstile re-check), but with no stored identity
+    // Still admitted, but with no stored identity
     // the reconnect must be re-screened rather than skipped.
     expect(game.wasAdmitted("p1")).toBe(true);
     expect(game.storedIdentity("p1")).toBeNull();

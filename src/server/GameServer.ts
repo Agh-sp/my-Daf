@@ -503,9 +503,8 @@ export class GameServer {
     return this.clients.byPersistentId(persistentID)?.clientID ?? null;
   }
 
-  // Whether this persistentID has already been admitted (passed Turnstile and
-  // other join authorization) for this game. Used to skip the single-use
-  // Turnstile re-check when an already-admitted player reconnects. Kicked
+  // Whether this persistentID has already completed join authorization for
+  // this game. Kicked
   // players are excluded so a kick still forces them back through the gate.
   public wasAdmitted(persistentID: string): boolean {
     return this.clients.wasAdmitted(persistentID);

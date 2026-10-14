@@ -277,9 +277,9 @@ describe("Transport reconnect policy", () => {
       ["a corrupted frame", CloseCode.ProtocolError, CloseReason.ProtocolError],
       ["a ban", CloseCode.Banned, CloseReason.Banned],
       [
-        "a rejected bot check",
+        "an unauthorized join",
         CloseCode.Unauthorized,
-        CloseReason.TurnstileFailed,
+        CloseReason.CannotJoin,
       ],
       ["a missing game", CloseCode.GameNotFound, CloseReason.GameNotFound],
       ["an ended game", CloseCode.GameNotFound, CloseReason.GameEnded],
@@ -564,7 +564,6 @@ describe("Transport reconnect policy", () => {
 
     it("preserves FIFO intent ordering across connection and does not send intents before handshake", async () => {
       const { transport, eventBus } = makeTransport();
-      (transport as any).lobbyConfig.turnstileToken = "dummy-turnstile";
       let onconnectCalled = false;
       transport.connect(
         () => {
@@ -584,7 +583,7 @@ describe("Transport reconnect policy", () => {
       ws.serverOpen();
       expect(onconnectCalled).toBe(true);
 
-      // Await token fetch promise so join message is sent
+      // Let the asynchronous join-token request settle.
       await Promise.resolve();
 
       // Intent B sent while socket is OPEN, but before server handshake frame
@@ -595,6 +594,10 @@ describe("Transport reconnect policy", () => {
         decodeClientMessage(f, undefined),
       );
       expect(sentBeforeHandshake.map((m) => m.type)).toEqual(["join"]);
+      expect(sentBeforeHandshake[0]).toMatchObject({
+        type: "join",
+        turnstileToken: null,
+      });
 
       // Server acknowledges with start
       ws.serverSend({

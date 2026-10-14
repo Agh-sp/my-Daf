@@ -367,15 +367,14 @@ export interface DesktopSessionState {
  *
  * With updates, declining to gate still lets the player play -- gating is a
  * cost we impose to keep them in sync. With a missing session, declining to
- * gate does NOT let them play. Worker.ts closes the socket on any first join
- * without a Steam-provider JWT, and Transport.ts renders that as a Turnstile
- * error the player never encountered. Gating is the only way that refusal
- * happens somewhere we can name a cause and offer Retry.
+ * gate leaves the player without a usable native session. Gating lets the
+ * shell explain the missing session and offer Retry instead of leaving the
+ * player with an unexplained connection failure.
  *
  * So every signed-out reason gates, including the ones the player cannot fix.
  *
- * A null state means no desktop shell -- the web build -- where a logged-out
- * player passes Turnstile normally and must not be gated.
+ * A null state means no desktop shell -- the web build -- where this
+ * Steam-session gate does not apply.
  */
 export function multiplayerAllowedForSession(
   state: DesktopSessionState | null,

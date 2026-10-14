@@ -147,20 +147,8 @@ describe("Client.initialize() booted from Main.ts module scope", () => {
     (window as any).BOOTSTRAP_CONFIG = {
       gameEnv: "dev",
       numWorkers: 2,
-      turnstileSiteKey: "test-site-key",
       jwtAudience: "localhost",
       gitCommit: "DEV",
-    };
-
-    // Without this the Turnstile prefetch polls for 10s and then rejects a
-    // stored promise nothing catches.
-    (window as any).turnstile = {
-      render: () => "widget-1",
-      execute: (
-        _widgetId: string,
-        opts: { callback: (token: string) => void },
-      ) => opts.callback("turnstile-test-token"),
-      remove: () => {},
     };
 
     // jsdom has neither FontFace nor document.fonts.
@@ -211,7 +199,7 @@ describe("Client.initialize() booted from Main.ts module scope", () => {
     );
 
     // Real markup, so every unguarded getElementById/querySelector in
-    // initialize() (store modal, help modal, turnstile container, ...) finds
+    // initialize() (store modal, help modal, ...) finds
     // the element it dereferences. Scripts hold EJS placeholders — drop them.
     const html = fs.readFileSync(
       path.resolve(__dirname, "../../index.html"),

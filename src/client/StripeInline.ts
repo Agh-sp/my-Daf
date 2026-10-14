@@ -24,7 +24,7 @@ import { translateText } from "./Utils";
  * disables the inline flow entirely; tiles fall back to the redirect flow,
  * which needs no client-side Stripe.
  *
- * Delivered per-environment via BOOTSTRAP_CONFIG (like turnstileSiteKey),
+ * Delivered per-environment via BOOTSTRAP_CONFIG,
  * not baked into the bundle: builds are environment-agnostic, and each
  * deployment passes the key whose mode matches its API at startup.
  */

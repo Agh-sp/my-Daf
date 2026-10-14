@@ -538,7 +538,6 @@
     "pool_redirect": "This lobby already sent you to another one. Please try again.",
     "protocol_error": "The connection was corrupted.",
     "ranked_limit_reached": "You are out of free ranked matches for today.",
-    "turnstile_failed": "The bot check failed. Please reload the page and try again.",
     "unknown": "The server closed the connection.",
     "wrong_worker": "This connection reached the wrong server process. Please reload the page and try again."
   },
@@ -887,8 +886,7 @@
     "spawn_failed": {
       "description": "Automatic spawn selection failed. You can't play this game.",
       "title": "Spawn failed"
-    },
-    "turnstile_error": "Verification error: {code}. Please refresh and try again."
+    }
   },
   "events_display": {
     "about_to_expire": "Your alliance with {name} is about to expire!",

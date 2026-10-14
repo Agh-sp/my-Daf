@@ -31,7 +31,6 @@ describe("ClientEnv", () => {
     window.BOOTSTRAP_CONFIG = {
       gameEnv: "staging",
       numWorkers: 4,
-      turnstileSiteKey: "test-key",
       jwtAudience: "openfront.dev",
       instanceId: "TEST_ID",
       gitCommit: "abc123",
@@ -40,7 +39,6 @@ describe("ClientEnv", () => {
 
     expect(ClientEnv.env()).toBe(GameEnv.Preprod);
     expect(ClientEnv.numWorkers()).toBe(4);
-    expect(ClientEnv.turnstileSiteKey()).toBe("test-key");
     expect(ClientEnv.jwtAudience()).toBe("openfront.dev");
     expect(ClientEnv.instanceId()).toBe("TEST_ID");
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -51,13 +49,12 @@ describe("ClientEnv", () => {
   });
 
   test("throws when a required environment field is missing", () => {
-    // The four required values all describe the ENVIRONMENT; a page without
+    // The three required values all describe the ENVIRONMENT; a page without
     // one of them has no environment to run in. Values that name a SERVER
     // are not required -- see the next test.
     window.BOOTSTRAP_CONFIG = {
       gameEnv: "dev",
       numWorkers: 1,
-      turnstileSiteKey: "k",
       jwtAudience: "localhost",
       instanceId: "x",
       // gitCommit missing
@@ -71,7 +68,6 @@ describe("ClientEnv", () => {
     // server knows, reads as "".
     window.BOOTSTRAP_CONFIG = {
       gameEnv: "dev",
-      turnstileSiteKey: "k",
       jwtAudience: "localhost",
       gitCommit: "abc123",
     };
@@ -83,7 +79,6 @@ describe("ClientEnv", () => {
     window.BOOTSTRAP_CONFIG = {
       gameEnv: "dev",
       numWorkers: 1,
-      turnstileSiteKey: "k",
       jwtAudience: "localhost",
       instanceId: "x",
       gitCommit: "DEV",
@@ -95,7 +90,6 @@ describe("ClientEnv", () => {
     window.BOOTSTRAP_CONFIG = {
       gameEnv: "prod",
       numWorkers: 1,
-      turnstileSiteKey: "k",
       jwtAudience: "openfront.io",
       instanceId: "x",
       gitCommit: "abc123",

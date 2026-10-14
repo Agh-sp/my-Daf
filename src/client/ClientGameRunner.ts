@@ -106,7 +106,6 @@ export interface LobbyConfig {
   clanTagCheck?: Promise<string | null>;
   playerRole: string | null;
   gameID: GameID;
-  turnstileToken: string | null;
   // GameStartInfo only exists when playing a singleplayer game.
   gameStartInfo?: WireGameStartInfo;
   // GameRecord exists when replaying an archived game.
@@ -368,7 +367,7 @@ export function joinLobby(
         // what's happening and let its update bar take it from there.
         //
         // On the web, in order: this host's own `/v/<commit>/` page, which
-        // keeps the loaded document and the Turnstile token; else the
+        // keeps the loaded document and its matching bundle; else the
         // game's host, whose shell serves the matching bundle (and map);
         // else this tab is simply stale (left open across a deploy), so
         // reload. See docs/MultiServer.md (OPE-471).

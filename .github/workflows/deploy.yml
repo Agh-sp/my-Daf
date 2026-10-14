@@ -224,14 +224,11 @@ jobs:
           HOST: ${{ matrix.host || (github.event_name == 'workflow_dispatch' && inputs.target_host) || 'staging' }}
           CDN_BASE: ${{ vars.CDN_BASE }}
           # Runtime env for the game server, which injects it into the
-          # page's BOOTSTRAP_CONFIG exactly like TURNSTILE_SITE_KEY — builds
-          # are environment-agnostic. Repo-level var holds the test-mode
-          # key; the `prod` environment (attached above for prod dispatches
-          # only) overrides it with the live-mode one — the key's mode must
-          # match the mode the API mints intents in (a mismatch is caught by
-          # the guard in StripeInline.ts, which just disables the inline
-          # flow). Unset/empty also keeps the inline payment flow off (the
-          # store falls back to redirect checkout).
+          # page's BOOTSTRAP_CONFIG — builds are environment-agnostic.
+          # The `prod` environment (attached above for prod dispatches only)
+          # overrides the repo-level key with the live-mode one; a mismatch
+          # is caught by StripeInline.ts and disables the inline flow.
+          # Unset/empty keeps the inline payment flow off.
           STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY }}
           # Grafana Faro collector for browser telemetry, delivered the same
           # way (runtime env → BOOTSTRAP_CONFIG). Unset keeps it off.
@@ -260,7 +257,6 @@ jobs:
           # until prod is ready, since an environment var wins over a repo
           # var of the same name.
           LOBBY_COORDINATOR: ${{ vars.LOBBY_COORDINATOR }}
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           SERVER_HOST_MASTERS: ${{ secrets.SERVER_HOST_MASTERS }}
           SERVER_HOST_FALK2: ${{ secrets.SERVER_HOST_FALK2 }}
           SERVER_HOST_STAGING: ${{ secrets.SERVER_HOST_STAGING }}

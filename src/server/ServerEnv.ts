@@ -63,15 +63,8 @@ export class ServerEnv {
     }
     return n;
   }
-  static turnstileSiteKey(): string {
-    const v = process.env.TURNSTILE_SITE_KEY;
-    if (!v) {
-      throw new Error("TURNSTILE_SITE_KEY not set");
-    }
-    return v;
-  }
-  // Optional, unlike turnstileSiteKey: a deployment without a key just keeps
-  // the inline Stripe flow off (the store falls back to redirect checkout).
+  // A deployment without a key keeps the inline Stripe flow off (the store
+  // falls back to redirect checkout).
   static stripePublishableKey(): string | undefined {
     const v = process.env.STRIPE_PUBLISHABLE_KEY;
     if (!v) return undefined;

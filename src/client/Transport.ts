@@ -737,7 +737,9 @@ export class Transport {
       username: this.lobbyConfig.playerName,
       clanTag: this.lobbyConfig.playerClanTag ?? null,
       cosmetics: this.lobbyConfig.cosmetics,
-      turnstileToken: this.lobbyConfig.turnstileToken,
+      // Preserve the wire field for older clients/servers. Join verification
+      // is now name screening only and does not require a bot-check token.
+      turnstileToken: null,
       token,
       spectator: this.lobbyConfig.spectator,
       gitCommit: ClientEnv.gitCommit(),

@@ -37,7 +37,7 @@ const CHECKIN_INTERVAL_MS = 5_000;
 const CHECKIN_JITTER_MS = 1_000;
 
 // Deadline for the slowest matched player: after match-assignment the client
-// still has to poll game existence, pass Turnstile, and clear join auth;
+// still has to poll game existence and clear join authorization;
 // anyone not connected when start() fires is left out of the roster and the
 // ranked game starts short-handed. A full lobby is NOT delayed by this —
 // hasReachedMaxPlayerCount flips the phase to Active as soon as everyone has

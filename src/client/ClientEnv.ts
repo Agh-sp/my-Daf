@@ -144,12 +144,11 @@ export class ClientEnv {
     // the API's list answers (src/client/ServerList.ts), and until it does,
     // whatever a server that rendered the page injected still answers.
     //
-    // A page missing one of these four is broken rather than server-less:
+    // A page missing one of these three is broken rather than server-less:
     // there is no environment to run in at all, so it still throws.
     if (
       !bc ||
       bc.gameEnv === undefined ||
-      bc.turnstileSiteKey === undefined ||
       bc.jwtAudience === undefined ||
       bc.gitCommit === undefined
     ) {
@@ -165,7 +164,6 @@ export class ClientEnv {
       cluster: bc.cluster,
       instanceLetter: bc.instanceLetter,
       numWorkers: bc.numWorkers,
-      turnstileSiteKey: bc.turnstileSiteKey,
       jwtAudience: bc.jwtAudience,
       // Optional: a deployment without a key (or a desktop shell, which
       // buys on Steam) omits it, and the inline Stripe flow stays off.
@@ -231,9 +229,6 @@ export class ClientEnv {
   }
   static instanceLetter(): string | undefined {
     return ClientEnv.get().instanceLetter;
-  }
-  static turnstileSiteKey(): string {
-    return ClientEnv.get().turnstileSiteKey;
   }
   static jwtAudience(): string {
     return ClientEnv.get().jwtAudience;
@@ -665,11 +660,9 @@ export interface ClientEnvValues {
   cluster?: ClusterConfig;
   instanceLetter?: string;
   numWorkers?: number;
-  turnstileSiteKey: string;
   jwtAudience: string;
   // Optional: absent when the deployment carries no Stripe key (dev, desktop
-  // shells). Environment-scoped like turnstileSiteKey, so a static page
-  // carries it too.
+  // shells). Environment-scoped, so a static page carries it too.
   stripePublishableKey?: string;
   // Optional: absent keeps client telemetry off (Telemetry.ts).
   faroCollectorUrl?: string;

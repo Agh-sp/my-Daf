@@ -19,8 +19,8 @@ import { clientPlatform } from "./ClientPlatform";
  * any deployment that has not opted in. The SDK is loaded lazily so a page
  * without telemetry never downloads it and boot is never blocked on it.
  *
- * Only our own code's signals go out. The ad and Turnstile scripts share the
- * page, its console and its error handlers, and were most of what Faro sent:
+ * Only our own code's signals go out. Third-party scripts share the page, its
+ * console and its error handlers:
  * console output is forwarded only when our bundle is on the stack
  * (forwardConsole), and exceptions thrown entirely inside other scripts are
  * dropped (filterSignal). console.warn and console.error go out as log lines,
@@ -231,8 +231,8 @@ function isError(item: TransportItem): boolean {
   );
 }
 
-// Thrown inside another script with none of our code on the stack: an ad
-// tag, the Turnstile widget. An exception with no frames at all is kept;
+// Thrown inside another script with none of our code on the stack. An
+// exception with no frames at all is kept;
 // there is no telling whose it is.
 function isThirdPartyException(item: TransportItem): boolean {
   const frames = (item.payload as ExceptionEvent).stacktrace?.frames ?? [];

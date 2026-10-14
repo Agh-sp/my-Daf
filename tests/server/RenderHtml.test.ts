@@ -27,7 +27,6 @@ describe("RenderHtml", () => {
 
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("DOMAIN", "localhost");
   });
 
@@ -102,7 +101,6 @@ describe("RenderHtml serverHost pinning", () => {
 
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("GIT_COMMIT", "abc");
   });
 
@@ -144,7 +142,6 @@ describe("RenderHtml siteHost injection", () => {
 
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("GIT_COMMIT", "abc");
     vi.stubEnv("DOMAIN", "openfront.io");
     vi.stubEnv("SUBDOMAIN", "blue");
@@ -186,7 +183,6 @@ describe("RenderHtml stripePublishableKey injection", () => {
 
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("GIT_COMMIT", "abc");
     vi.stubEnv("DOMAIN", "openfront.io");
     vi.stubEnv("SUBDOMAIN", "blue");
@@ -226,7 +222,6 @@ describe("RenderHtml stripePublishableKey injection", () => {
 describe("RenderHtml faroCollectorUrl injection", () => {
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("GIT_COMMIT", "abc");
     vi.stubEnv("DOMAIN", "openfront.io");
     vi.stubEnv("SUBDOMAIN", "blue");
@@ -271,7 +266,6 @@ function bootstrapConfig(html: string): Record<string, unknown> {
 describe("RenderHtml environment-only render", () => {
   beforeEach(() => {
     stubIdentity();
-    vi.stubEnv("TURNSTILE_SITE_KEY", "test-key");
     vi.stubEnv("DOMAIN", "openfront.io");
     vi.stubEnv("SUBDOMAIN", "blue");
     vi.stubEnv("SITE_HOST", "openfront.io");
@@ -310,10 +304,7 @@ describe("RenderHtml environment-only render", () => {
   it.each([
     ["gitCommit"],
     ["gameEnv"],
-    ["turnstileSiteKey"],
     ["jwtAudience"],
-    // Environment-scoped, so the static per-version page must carry it:
-    // it is how a page served by the static Worker still gets a key.
     ["stripePublishableKey"],
     ["faroCollectorUrl"],
     ["cdnBase"],
@@ -357,7 +348,6 @@ describe("RenderHtml environment-only render", () => {
         `        gameEnv: ${JSON.stringify(ServerEnv.gameEnvName())},`,
         `        cluster: ${JSON.stringify(ServerEnv.cluster())},`,
         '        instanceLetter: "a",',
-        '        turnstileSiteKey: "test-key",',
         '        jwtAudience: "openfront.io",',
         '        stripePublishableKey: "pk_test_abc",',
         '        faroCollectorUrl: "https://faro.example/collect/k",',
@@ -367,6 +357,7 @@ describe("RenderHtml environment-only render", () => {
         "      };",
       ].join("\n"),
     );
+    expect(bootstrapConfig(html)).not.toHaveProperty("turnstileSiteKey");
   });
 
   // INSTANCE_ID is unset on every deployment that does not set it, and

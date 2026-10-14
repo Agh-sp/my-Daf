@@ -19,9 +19,8 @@ export class Roster {
   // persistentID -> clientID for reconnection. Cleared by forgetReconnect (a
   // lobby-phase leave) so the seat is free again.
   private reconnectable = new Map<string, ClientID>();
-  // persistentIDs that have passed join authorization (incl. Turnstile) for
-  // this game at least once. Survives forgetReconnect, unlike the reconnect
-  // mapping, so a returning player can skip the single-use Turnstile re-check.
+  // Persistent IDs that have completed join authorization for this game at
+  // least once. Survives forgetReconnect, unlike the reconnect mapping.
   private admitted = new Set<string>();
   private kicked = new Set<string>();
   private disconnected = new Map<ClientID, boolean>();
@@ -137,8 +136,8 @@ export class Roster {
     return this.kicked.has(persistentID);
   }
 
-  // Whether this persistentID has already been admitted (passed Turnstile and
-  // other join authorization) for this game. Kicked players are excluded so
+  // Whether this persistentID has already completed join authorization for
+  // this game. Kicked players are excluded so
   // a kick still forces them back through the gate.
   wasAdmitted(persistentID: string): boolean {
     if (this.kicked.has(persistentID)) return false;

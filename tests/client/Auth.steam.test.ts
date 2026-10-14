@@ -168,7 +168,7 @@ describe("Steam login", () => {
   // returns "" when signed out, so any authenticated call still goes out and
   // still comes back 401, and Api.ts calls logOut() on 401 from 13 places.
   // Resetting to "unknown" there would un-gate multiplayer and hide the bar,
-  // handing the player back the raw Turnstile error this work exists to remove.
+  // leaving the player with an unexplained connection failure.
   it("keeps a diagnosed signed-out state through an unrelated logOut", async () => {
     vi.spyOn(steamSDK, "isOnSteam").mockReturnValue(true);
     vi.spyOn(steamSDK, "getTicket").mockResolvedValue({

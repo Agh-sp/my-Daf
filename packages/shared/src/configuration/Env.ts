@@ -6,8 +6,8 @@ declare global {
   interface Window {
     // Values the page carries into the bundle. Every field is optional to
     // TypeScript because the page is data, not code; ClientEnv.get() decides
-    // which are actually required. Only gitCommit, gameEnv, turnstileSiteKey
-    // and jwtAudience are: they describe the ENVIRONMENT, and are identical
+    // which are actually required. Only gitCommit, gameEnv and jwtAudience
+    // are: they describe the ENVIRONMENT, and are identical
     // for every player on a site. Everything below them names a SERVER, and
     // a static page (docs/MultiServer.md, "Server list v2") carries none of
     // it — the API's list answers instead.
@@ -24,11 +24,9 @@ declare global {
       // cluster map. Web shells send cluster/instanceLetter instead; a static
       // page sends neither.
       numWorkers?: number;
+      // Legacy value accepted from older shells but no longer required or used.
       turnstileSiteKey?: string;
       jwtAudience?: string;
-      // Environment-scoped like turnstileSiteKey, but optional: a deployment
-      // without one (dev, desktop shells) just keeps the inline Stripe flow
-      // off.
       stripePublishableKey?: string;
       // Environment-scoped and optional like stripePublishableKey: the
       // Grafana Faro collector URL. Absent keeps client telemetry off.

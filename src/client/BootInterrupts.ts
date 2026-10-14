@@ -108,7 +108,7 @@ export function isCleanHomepage(
  * - no lobby handle.
  *
  * The middle one is not covered by the last. A public-lobby join awaits
- * userAuth(), whenSeeded(), cosmetics and a Turnstile token before
+ * userAuth(), whenSeeded() and cosmetics before
  * `lobbyHandle` is assigned, and rewrites the URL only once the handshake
  * resolves — so for that whole window the page still looks like a pristine
  * homepage with no lobby, and a /users/@me landing in it would put a confirm
@@ -161,7 +161,7 @@ export function lapseShownAfterDispatch(
  * Does this join still own the in-flight flag — i.e. may it clear it?
  *
  * Only the current join does. `handleJoinLobby` awaits userAuth(),
- * whenSeeded(), cosmetics and a Turnstile token before assigning a handle, so
+ * whenSeeded() and cosmetics before assigning a handle, so
  * a second join can start and set the flag again while the first is still
  * unwinding. Whichever way the older one then ends — rejecting, or reaching
  * the superseded branch — clearing the flag would re-open the boot interrupts

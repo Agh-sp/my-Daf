@@ -535,7 +535,7 @@ describe("bootInterruptsAllowed", () => {
   });
 
   // The window `lobbyHandle` does not cover. A public-lobby join awaits
-  // userAuth(), whenSeeded(), cosmetics and a Turnstile token before the
+  // userAuth(), whenSeeded() and cosmetics before the
   // handle is assigned, and rewrites the URL only once the handshake resolves
   // — so a /users/@me landing in it sees "/", an empty hash and a null handle,
   // and the confirm opens over a game the player has already committed to.
@@ -573,8 +573,8 @@ describe("bootInterruptsAllowed", () => {
   });
 });
 
-// A join can fail before it ever reaches a lobby handle — getTurnstileToken()
-// throwing is the live example — and the only thing that runs then is the
+// A join can fail before it ever reaches a lobby handle, and the only thing
+// that runs then is the
 // `join-lobby` catch. Nothing else clears the flag, so without this every boot
 // interrupt is silenced for the rest of the session.
 describe("a join that fails before reaching a handle", () => {
@@ -596,7 +596,7 @@ describe("a join that fails before reaching a handle", () => {
     ).toBe(true);
   });
 
-  // handleJoinLobby awaits userAuth(), cosmetics and a Turnstile token before
+  // handleJoinLobby awaits userAuth() and cosmetics before
   // assigning a handle, so a second join can start while the first is still
   // unwinding. The older join must not re-open the interrupts over it —
   // whichever way it ends.
@@ -615,7 +615,7 @@ describe("a join that fails before reaching a handle", () => {
   // The same hazard on the SUCCESS path, which is the likelier one: click
   // lobby A, then lobby B before A's handshake resolves. A's awaits settle
   // first, A reaches the superseded branch, and B is still awaiting cosmetics
-  // and a Turnstile token with no handle yet. If A cleared the flag there, a
+  // and cosmetics with no handle yet. If A cleared the flag there, a
   // /users/@me landing in that window would open the confirm over B.
   it("does not clear the flag when a superseded join completes", () => {
     const joinA = 1000;
@@ -637,7 +637,7 @@ describe("a join that fails before reaching a handle", () => {
 
     // A's awaits settle and it reaches the superseded branch. Not the owner,
     // so it leaves the flag alone — B is still awaiting cosmetics and a
-    // Turnstile token with no handle yet.
+    // cosmetics with no handle yet.
     if (joinOwnsInFlightFlag(mostRecentJoinEvent, joinA)) joinInFlight = false;
     expect(joinInFlight).toBe(true);
     expect(

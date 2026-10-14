@@ -775,8 +775,8 @@ Roadmap item 2. A page built once per version and served to everyone can
 only carry what is the same for every player, so `ClientEnv` splits the
 values it reads in two.
 
-**Required (the environment):** `gameEnv`, `turnstileSiteKey`,
-`jwtAudience`, `gitCommit` (plus the optional `assetManifest` / `cdnBase`).
+**Required (the environment):** `gameEnv`, `jwtAudience`, `gitCommit` (plus
+the optional `assetManifest` / `cdnBase`).
 A page missing one of these has no environment to run in and still throws
 `Missing BOOTSTRAP_CONFIG`.
 

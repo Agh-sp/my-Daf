@@ -6,7 +6,7 @@ import { ClientEnv, NoServerError } from "../../src/client/ClientEnv";
 // Multi-server v2, roadmap item 2 (docs/MultiServer.md): the page becomes a
 // static file built once per version and served to everyone, so it carries
 // only the values that are the same for every player — the environment, the
-// Turnstile key, the API audience and the commit it was built from. Nothing
+// API audience and the commit it was built from. Nothing
 // in it names a server: which server to talk to is what the API's list
 // answers. This file pins that a page like that boots.
 
@@ -35,7 +35,6 @@ function staticPage() {
   ClientEnv.reset();
   (window as any).BOOTSTRAP_CONFIG = {
     gameEnv: "prod",
-    turnstileSiteKey: "site-key",
     jwtAudience: "openfront.io",
     gitCommit: OWN,
   };
@@ -71,7 +70,6 @@ describe("a page carrying only environment values", () => {
     expect(ClientEnv.env()).toBe(GameEnv.Prod);
     expect(ClientEnv.gitCommit()).toBe(OWN);
     expect(ClientEnv.jwtAudience()).toBe("openfront.io");
-    expect(ClientEnv.turnstileSiteKey()).toBe("site-key");
     expect(ClientEnv.jwtIssuer()).toBe("https://api.openfront.io");
   });
 

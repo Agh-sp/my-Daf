@@ -103,7 +103,6 @@ jobs:
           API_KEY: ${{ secrets.API_KEY }}
           ADMIN_BOT_API_KEY: ${{ secrets.ADMIN_BOT_API_KEY }}
           LOBBY_COORDINATOR: ${{ vars.LOBBY_COORDINATOR }}
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           # Runtime env → the page's BOOTSTRAP_CONFIG (see deploy.yml).
           # Environment-scoped: the prod-* environments carry the live-mode
           # key; alpha has no environment and inherits the repo-level
@@ -171,7 +170,6 @@ jobs:
           ADMIN_BOT_API_KEY: ${{ secrets.ADMIN_BOT_API_KEY }}
           GAME_HOST: ${{ matrix.target.gameHost || '' }}
           LOBBY_COORDINATOR: ${{ vars.LOBBY_COORDINATOR }}
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           # Runtime env → the page's BOOTSTRAP_CONFIG (see deploy.yml).
           # Environment-scoped: the prod-* environments carry the live-mode
           # key; alpha has no environment and inherits the repo-level
@@ -258,7 +256,6 @@ jobs:
           ADMIN_BOT_API_KEY: ${{ secrets.ADMIN_BOT_API_KEY }}
           GAME_HOST: ${{ matrix.target.gameHost || '' }}
           LOBBY_COORDINATOR: ${{ vars.LOBBY_COORDINATOR }}
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           # Runtime env → the page's BOOTSTRAP_CONFIG (see deploy.yml).
           # Environment-scoped: the prod-* environments carry the live-mode
           # key; alpha has no environment and inherits the repo-level
@@ -335,7 +332,6 @@ jobs:
           ADMIN_BOT_API_KEY: ${{ secrets.ADMIN_BOT_API_KEY }}
           GAME_HOST: ${{ matrix.target.gameHost || '' }}
           LOBBY_COORDINATOR: ${{ vars.LOBBY_COORDINATOR }}
-          TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           # Runtime env → the page's BOOTSTRAP_CONFIG (see deploy.yml).
           # Environment-scoped: the prod-* environments carry the live-mode
           # key; alpha has no environment and inherits the repo-level

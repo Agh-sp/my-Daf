@@ -346,7 +346,7 @@ export function clearLocalSession(): void {
   // returns "" once signed out, so an authenticated call still fires and still
   // 401s -- which reaches logOut() from any of Api.ts's call sites. Resetting
   // there would un-gate multiplayer and hide the bar, handing the player back
-  // the raw Turnstile error. "retrying" must survive for the same reason:
+  // an unexplained connection error. "retrying" must survive for the same reason:
   // retrySteamSignIn owns that transition end to end.
   if (steamSDK.isOnSteam() && __sessionState.status === "signed-in") {
     setSessionState({ status: "unknown" });

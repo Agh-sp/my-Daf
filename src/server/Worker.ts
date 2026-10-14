@@ -35,7 +35,7 @@ import { gameApiCors } from "./GameApiCors";
 import { GameManager } from "./GameManager";
 import { registerGamePreviewRoute } from "./GamePreviewRoute";
 import { GamePhase, type GameServer } from "./GameServer";
-import { isSteamAuthenticated, planJoinVerify, verifyJoin } from "./JoinVerify";
+import { planJoinVerify, verifyJoin } from "./JoinVerify";
 import { getUserMe, userMeFailureClose, verifyClientToken } from "./jwt";
 import { payForLobbyQueue, queueListedLobby } from "./LobbyQueuePayment";
 import { logger } from "./Logger";
@@ -346,7 +346,7 @@ export async function startWorker() {
       }
 
       // Dev has no subscription backend; skip the check so the feature is
-      // testable locally (same precedent as Turnstile).
+      // testable locally.
       if (ServerEnv.env() !== GameEnv.Dev) {
         const userMe = await getUserMe(token);
         if (userMe.type === "error") {
@@ -610,59 +610,26 @@ export async function startWorker() {
           clientMsg.clanTag ?? null,
         );
 
-        // Gate the join and screen the display name in one API call: status
-        // is the Turnstile verdict, and the response carries the
-        // display-ready (username, clanTag) pair, so a banned name is never
-        // visible — not even in the lobby. Turnstile gates the FIRST join
-        // only: an already-admitted player who reconnects or refreshes must
-        // not be re-challenged — their original token is single-use and was
-        // already redeemed — so the token is omitted for them and the API
-        // runs the name check alone (an omitted token is always approved).
-        // Re-admits only call out when the verdict could matter (pre-start,
-        // with a changed identity); otherwise the reconnect proceeds with
-        // zero API calls, keeping mass reconnects at game start off the
-        // API. Runs before the rejoin attempt so a pre-start identity
-        // change on refresh is screened before it is applied.
+        // Screen new and changed identities through the API so a rejected
+        // name is never visible in a lobby. Unchanged re-admits and joins
+        // after the game starts do not need an identity update, avoiding
+        // unnecessary API calls during mass reconnects.
         let verifySkipped = false;
         if (ServerEnv.env() !== GameEnv.Dev) {
           const game = gm.game(clientMsg.gameID);
           const stored = game?.storedIdentity(persistentId) ?? null;
           const isReadmit = game?.wasAdmitted(persistentId) ?? false;
-          const steamAuthed = isSteamAuthenticated(claims);
-          // SECURITY: the reject/skip/verify split (first joins must
-          // present a token, only re-admits may omit it) lives in
-          // planJoinVerify — see its doc comment. Steam-authenticated first
-          // joins are the one sanctioned null-token first join: Steam
-          // ownership (a signed, unforgeable provider="steam" claim) stands
-          // in for the bot check, and the name check still runs.
           const plan = planJoinVerify({
             isReadmit,
             gameStarted: game?.hasStarted() ?? false,
-            turnstileToken: clientMsg.turnstileToken ?? null,
             identityUnchanged:
               stored !== null &&
               stored.username === clientMsg.username &&
               stored.clanTag === (clientMsg.clanTag ?? null),
-            steamAuthed,
           });
-          if (steamAuthed && !isReadmit) {
-            log.info(
-              "Steam-authed join: skipping Turnstile siteverify (name check still runs)",
-              { persistentID: persistentId, gameID: clientMsg.gameID },
-            );
-          }
-          if (plan.action === "reject") {
-            log.warn("Unauthorized: missing Turnstile token", {
-              persistentID: persistentId,
-              gameID: clientMsg.gameID,
-            });
-            ws.close(CloseCode.Unauthorized, CloseReason.TurnstileFailed);
-            return;
-          }
           if (plan.action === "verify") {
             const verdict = await verifyJoin(
               ip,
-              plan.token,
               clientMsg.username,
               clientMsg.clanTag ?? null,
             );
@@ -672,14 +639,12 @@ export async function startWorker() {
                 clanTag = verdict.clanTag;
                 break;
               case "rejected":
-                // Only reachable on first joins: re-admits omit the token,
-                // which the API always approves.
-                log.warn("Unauthorized: Turnstile token rejected", {
+                log.warn("Unauthorized: join verification rejected", {
                   persistentID: persistentId,
                   gameID: clientMsg.gameID,
                   reason: verdict.reason,
                 });
-                ws.close(CloseCode.Unauthorized, CloseReason.TurnstileFailed);
+                ws.close(CloseCode.Unauthorized, CloseReason.CannotJoin);
                 return;
               case "error":
                 // Fail open: the locally screened name stands.

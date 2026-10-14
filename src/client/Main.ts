@@ -11,7 +11,6 @@ import {
   PublicGameInfo,
   WireGameStartInfo,
 } from "@openfront/shared/WireSchemas";
-import { GameEnv } from "@openfront/shared/configuration/Env";
 import { ClientEnv } from "src/client/ClientEnv";
 import { renderNavVersion } from "src/client/GameVersion";
 import "./AdminPanel";
@@ -58,7 +57,6 @@ import { loadGameClient, prefetchGameClient } from "./GameClientLoader";
 import "./GameModeSelector";
 import {
   GameModeSelector,
-  joinIsGateable,
   reportMultiplayerRefusal,
   shouldBlockJoin,
 } from "./GameModeSelector";
@@ -119,14 +117,6 @@ import { steamSDK } from "./SteamSDK";
 import type { StoreModal } from "./Store";
 import { initTelemetry } from "./Telemetry";
 import type { TokenLoginModal } from "./TokenLoginModal";
-import {
-  requestTurnstileToken,
-  resolveTurnstileToken,
-  TURNSTILE_LOAD_FAILED_CODE,
-  TurnstileError,
-  type TurnstileApi,
-  type TurnstileToken,
-} from "./TurnstileToken";
 import type { PlayPage } from "./components/PlayPage";
 // Before the first userMeResponse, for the modals that load after it.
 import "./UserMeBroadcast";
@@ -171,7 +161,6 @@ import "./styles/layout/header.css";
 
 declare global {
   interface Window {
-    turnstile?: TurnstileApi;
     adsEnabled: boolean;
     gtag?: (...args: any[]) => void;
     PageOS: {
@@ -312,9 +301,9 @@ class Client {
   private mostRecentJoinEvent: number;
   // A join the player has committed to but that has not reached a lobbyHandle
   // yet. `lobbyHandle` alone does not cover this: a public-lobby join awaits
-  // userAuth(), whenSeeded(), getPlayerCosmeticsRefs() and
-  // getTurnstileToken() before the handle is assigned, and rewrites the URL
-  // only once `join` resolves — so throughout that window the page still looks
+  // userAuth(), whenSeeded() and getPlayerCosmeticsRefs() before the handle is
+  // assigned, and rewrites the URL only once `join` resolves — so throughout
+  // that window the page still looks
   // like a pristine homepage and a /users/@me landing in it would open a
   // confirm over a game that is starting.
   private joinInFlight = false;
@@ -331,8 +320,6 @@ class Client {
   // second) as well as the start message. Merged back in at emit time; see
   // GroupTokenTracker for why a repeat must not re-emit.
   private readonly presenceGroup = new GroupTokenTracker();
-
-  private turnstileTokenPromise: Promise<TurnstileToken> | null = null;
 
   async initialize(): Promise<void> {
     // FIRST, ahead of consumeCreatorCodePath() and of handleUrl() below --
@@ -464,24 +451,6 @@ class Client {
     // never throws and keeps itself alive with a heartbeat afterwards.
     startServerListPolling();
 
-    // Prefetch turnstile token so it is available when the user joins a lobby.
-    // Desktop (Steam) has no Turnstile script and is server-side exempt, so
-    // skip it — otherwise getTurnstileToken() throws "Failed to load Turnstile
-    // script" after its load wait. Also skip on the versioned replay shells:
-    // the replay host may not be on the Turnstile site key's domain allowlist,
-    // so rendering the widget there just fails — and replays never
-    // send a token anyway (see getTurnstileToken below).
-    const turnstilePrefetch =
-      isDesktopShell() || isReplayShellHost(window.location.hostname)
-        ? null
-        : getTurnstileToken();
-    // A prefetch that fails is not an error anyone has asked about yet: the
-    // join path drops it and fetches once more (see getTurnstileToken below),
-    // and only that attempt alerts. Mark it handled here so a boot-time
-    // rejection nobody is awaiting yet does not surface as an unhandled one.
-    turnstilePrefetch?.catch(() => {});
-    this.turnstileTokenPromise = turnstilePrefetch;
-
     // Wait for components to render before setting version
     await customElements.whenDefined("mobile-nav-bar");
     await customElements.whenDefined("desktop-nav-bar");
@@ -568,8 +537,8 @@ class Client {
     });
 
     document.addEventListener("join-lobby", (event) => {
-      // A rejected handshake (Turnstile alerts then rejects) never assigns
-      // lobbyHandle, so nothing downstream clears the "lobby" presence
+      // A rejected handshake never assigns lobbyHandle, so nothing downstream
+      // clears the "lobby" presence
       // emitted at the top of the join -- friends would keep being offered a
       // Join into a lobby the player never entered. Re-throw so the failure
       // still surfaces exactly as it does today.
@@ -1420,7 +1389,7 @@ class Client {
    * never pass a button. Matchmaking is the sharpest case: it dispatches
    * join-lobby itself when a match is found, with no click to intercept, so
    * without this a signed-out player queues, matches, and is closed by the
-   * server with the Turnstile error this whole feature exists to replace.
+   * server for missing the required session.
    *
    * The decision itself lives in shouldBlockJoin, which is pure and
    * unit-tested; this adds the shell check, the modal cleanup and the
@@ -1596,7 +1565,6 @@ class Client {
       cosmetics: isSingleplayer
         ? {}
         : await getPlayerCosmeticsRefs({ verified: resolvedName.verified }),
-      turnstileToken: await this.getTurnstileToken(lobby),
       playerName: resolvedName.name,
       playerClanTag: this.usernameInput?.getClanTag() ?? null,
       clanTagCheck: this.usernameInput?.getClanCheck(),
@@ -2014,36 +1982,6 @@ class Client {
     }
   }
 
-  private async getTurnstileToken(
-    lobby: JoinLobbyEvent,
-  ): Promise<string | null> {
-    if (
-      ClientEnv.env() === GameEnv.Dev ||
-      isDesktopShell() ||
-      // Single-player and replays: no server to verify a token against (and
-      // on the CDN replay shells Turnstile cannot load at all). Shared with
-      // the desktop gate so the exemption has one definition.
-      !joinIsGateable(lobby)
-    ) {
-      return null;
-    }
-
-    const prefetch = this.turnstileTokenPromise;
-    // Clear promise so a new token is fetched next time. Unconditional: a
-    // prefetch that rejected must not be waited on twice either.
-    this.turnstileTokenPromise = null;
-
-    return resolveTurnstileToken({
-      prefetch,
-      requestFresh: getTurnstileToken,
-      // Always request a new token on crazygames.
-      forceFresh: crazyGamesSDK.isOnCrazyGames(),
-      onError: (code) =>
-        void showInGameAlert(
-          translateText("error_modal.turnstile_error", { code }),
-        ),
-    });
-  }
 }
 
 // Hide elements with no-crazygames class if on CrazyGames
@@ -2105,28 +2043,4 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", bootstrap);
 } else {
   bootstrap();
-}
-
-async function getTurnstileToken(): Promise<TurnstileToken> {
-  // Wait for Turnstile script to load (handles slow connections)
-  let attempts = 0;
-  while (window.turnstile === undefined && attempts < 100) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    attempts++;
-  }
-
-  const turnstile = window.turnstile;
-  if (turnstile === undefined) {
-    throw new TurnstileError(
-      TURNSTILE_LOAD_FAILED_CODE,
-      "Failed to load Turnstile script",
-    );
-  }
-
-  // The render/execute choreography (and why the callbacks go on render)
-  // lives in TurnstileToken.ts.
-  return requestTurnstileToken(turnstile, {
-    sitekey: ClientEnv.turnstileSiteKey(),
-    container: "#turnstile-container",
-  });
 }
