@@ -1,0 +1,120 @@
+{
+  "id": "EastAsia",
+  "name": "East Asia",
+  "translation_key": "map.eastasia",
+  "categories": ["asia"],
+  "multiplayer_frequency": 5,
+  "nations": [
+    {
+      "coordinates": [1157, 614],
+      "name": "Hokkaido",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [1162, 154],
+      "name": "Sakhalin",
+      "flag": "Sakhalin"
+    },
+    {
+      "coordinates": [631, 1174],
+      "name": "Shikoku",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [450, 1234],
+      "name": "Kyushu",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [265, 1010],
+      "name": "South Korea",
+      "flag": "kr"
+    },
+    {
+      "coordinates": [160, 841],
+      "name": "North Korea",
+      "flag": "kp"
+    },
+    {
+      "coordinates": [979, 1073],
+      "name": "Tokyo",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [275, 1614],
+      "name": "Okinawa",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [740, 480],
+      "name": "Primorsky Krai",
+      "flag": "ru"
+    },
+    {
+      "coordinates": [25, 80],
+      "name": "Inner Mongolia",
+      "flag": "cn"
+    },
+    {
+      "coordinates": [334, 24],
+      "name": "Amur",
+      "flag": "ru"
+    },
+    {
+      "coordinates": [1443, 512],
+      "name": "Kuril Islands",
+      "flag": "Sakhalin"
+    },
+    {
+      "coordinates": [69, 581],
+      "name": "Jilin",
+      "flag": "cn"
+    },
+    {
+      "coordinates": [932, 89],
+      "name": "Khabarovsk Krai",
+      "flag": "ru"
+    },
+    {
+      "coordinates": [582, 1098],
+      "name": "Chugoku",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [773, 1102],
+      "name": "Kyoto",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [1037, 835],
+      "name": "Tohoku",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [328, 478],
+      "name": "Heilongjiang",
+      "flag": "cn"
+    },
+    {
+      "coordinates": [868, 1052],
+      "name": "Chubu",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [991, 987],
+      "name": "Kanto",
+      "flag": "jp"
+    },
+    {
+      "coordinates": [191, 1201],
+      "name": "Jeju Island",
+      "flag": "kr"
+    },
+    {
+      "coordinates": [581, 224],
+      "name": "Jewish Autonomous Oblast",
+      "flag": "ru"
+    }
+  ],
+  "themes": ["asia"]
+}

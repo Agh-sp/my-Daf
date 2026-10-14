@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="gas" x1="7" y1="3" x2="18" y2="21" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BAF4FF"/>
+      <stop offset=".42" stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="gas-core" x1="10" y1="12" x2="14" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFCEB"/>
+      <stop offset="1" stop-color="#FDE68A"/>
+    </linearGradient>
+  </defs>
+  <path d="M12.2 2.15c1.15 3.72-.22 5.18-1.64 7.02-1.28 1.66-2.46 3.2-1.43 6.02.64-1.07 1.45-1.93 2.6-2.8 2.25-1.7 3.51-3.65 2.75-6.24 3.55 3.05 5.34 6.32 4.86 10.15a7.43 7.43 0 0 1-14.8-.92c0-4.77 3.04-9.04 7.66-13.23Z" fill="url(#gas)" stroke="#164E75" stroke-width="1.05" stroke-linejoin="round"/>
+  <path d="M12.1 13.2c1.48 1.55 2.3 2.78 2.3 4.05a2.4 2.4 0 0 1-4.8 0c0-1.3.9-2.66 2.5-4.05Z" fill="url(#gas-core)" stroke="#D7F7FF" stroke-width=".65"/>
+  <path d="M7.55 15.8a4.5 4.5 0 0 0 1.4 3.05" stroke="#E0F7FF" stroke-opacity=".8" stroke-width="1" stroke-linecap="round"/>
+</svg>

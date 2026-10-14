@@ -1,0 +1,152 @@
+import newsItems from "../../../resources/news.json";
+import {
+  filterNewsByPlatform,
+  getVisibleNewsItems,
+  NewsItem,
+} from "../../../src/client/components/NewsBox";
+
+vi.mock("../../../src/client/Api", () => ({
+  getNews: vi.fn(async () => [
+    {
+      id: "md",
+      title: "Markdown",
+      type: "announcement",
+      description: "Read the **rules** first",
+    },
+  ]),
+}));
+
+const DISMISSED_NEWS_KEY = "dismissedNewsItems";
+const allItems = newsItems as NewsItem[];
+
+function createMockLocalStorage(): Storage {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = String(value);
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+  };
+}
+
+describe("NewsBox", () => {
+  beforeEach(() => {
+    vi.stubGlobal("localStorage", createMockLocalStorage());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe("getVisibleNewsItems", () => {
+    it("returns all items when none are dismissed", () => {
+      const items = getVisibleNewsItems(allItems);
+      expect(items.length).toBe(newsItems.length);
+    });
+
+    it("filters out dismissed items", () => {
+      const items = getVisibleNewsItems(allItems);
+      const firstId = items[0].id;
+      localStorage.setItem(DISMISSED_NEWS_KEY, JSON.stringify([firstId]));
+      const filtered = getVisibleNewsItems(allItems);
+      expect(filtered.find((i) => i.id === firstId)).toBeUndefined();
+      expect(filtered.length).toBe(items.length - 1);
+    });
+
+    it("returns empty when all items are dismissed", () => {
+      const allIds = allItems.map((i) => i.id);
+      localStorage.setItem(DISMISSED_NEWS_KEY, JSON.stringify(allIds));
+      const items = getVisibleNewsItems(allItems);
+      expect(items.length).toBe(0);
+    });
+  });
+
+  describe("filterNewsByPlatform", () => {
+    const everywhere: NewsItem = { id: "a", title: "A", type: "announcement" };
+    const emptyList: NewsItem = {
+      id: "b",
+      title: "B",
+      type: "announcement",
+      platforms: [],
+    };
+    const webOnly: NewsItem = {
+      id: "c",
+      title: "C",
+      type: "announcement",
+      platforms: ["web", "crazygames"],
+    };
+    const items = [everywhere, emptyList, webOnly];
+
+    it("hides items targeted at other platforms", () => {
+      expect(filterNewsByPlatform(items, "steam").map((i) => i.id)).toEqual([
+        "a",
+        "b",
+      ]);
+    });
+
+    it("shows items targeted at the current platform", () => {
+      expect(filterNewsByPlatform(items, "web").map((i) => i.id)).toEqual([
+        "a",
+        "b",
+        "c",
+      ]);
+    });
+  });
+
+  describe("the element", () => {
+    afterEach(() => {
+      document.body.innerHTML = "";
+    });
+
+    // The markdown renderer is its own chunk, loaded with the news.
+    it("renders a description's markdown", async () => {
+      const box = document.createElement("news-box");
+      document.body.appendChild(box);
+
+      await vi.waitFor(() =>
+        expect(box.querySelector("strong")?.textContent).toBe("rules"),
+      );
+    });
+  });
+
+  describe("news items structure", () => {
+    it("each item has required fields", () => {
+      const items = getVisibleNewsItems(allItems);
+      for (const item of items) {
+        expect(item.id).toBeDefined();
+        expect(typeof item.id).toBe("string");
+        expect(item.title).toBeDefined();
+        expect(typeof item.title).toBe("string");
+        const hasDescription =
+          item.description !== undefined ||
+          item.descriptionTranslationKey !== undefined;
+        expect(hasDescription).toBe(true);
+        expect(item.type).toBeDefined();
+        expect(["tournament", "tutorial", "announcement", "warning"]).toContain(
+          item.type,
+        );
+      }
+    });
+
+    it("each item has a unique id", () => {
+      const items = getVisibleNewsItems(allItems);
+      const ids = items.map((i) => i.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it("contains a tournament entry", () => {
+      const items = getVisibleNewsItems(allItems);
+      expect(items.some((i) => i.type === "tournament")).toBe(true);
+    });
+  });
+});

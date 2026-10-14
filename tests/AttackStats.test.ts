@@ -1,0 +1,151 @@
+import { PlayerInfo, PlayerType } from "@openfront/engine-api/game/GameTypes";
+import {
+  ATTACK_INDEX_MAX_RECV,
+  ATTACK_INDEX_RECV,
+  GOLD_INDEX_WAR,
+  GOLD_INDEX_WORK,
+} from "@openfront/engine-api/StatsSchemas";
+import { AttackExecution } from "@openfront/engine/execution/AttackExecution";
+import { Game, Player } from "@openfront/engine/game/Game";
+import { setup } from "./util/Setup";
+
+let game: Game;
+let player1: Player;
+let player2: Player;
+const player1Info = new PlayerInfo(
+  "player1",
+  PlayerType.Human,
+  "player1",
+  "player1",
+);
+const player2Info = new PlayerInfo(
+  "player2",
+  PlayerType.Human,
+  "player2",
+  "player2",
+);
+
+describe("AttackStats", () => {
+  beforeEach(async () => {
+    game = await setup("plains", { infiniteTroops: true }, [
+      player1Info,
+      player2Info,
+    ]);
+
+    player1 = game.player("player1");
+    player2 = game.player("player2");
+    player1.conquer(game.ref(50, 50));
+    player2.conquer(game.ref(50, 51));
+    player2.addGold(100n);
+    game.stats().goldWork(player2, 100n);
+  });
+
+  test("should increase war gold stat when a player is eliminated", () => {
+    expect(player1.sharesBorderWith(player2)).toBeTruthy();
+    // Player2 must attack to be considered active (otherwise gold won't transfer)
+    game.addExecution(
+      new AttackExecution(1, player2, game.terraNullius().id()),
+    );
+    game.executeNextTick();
+    performAttack(game, player1, player2);
+    expectWarGoldStatIsIncreasedAfterKill(game, player1, player2);
+  });
+
+  test("should NOT increase war gold stat when a inactive player is eliminated", () => {
+    expect(player1.sharesBorderWith(player2)).toBeTruthy();
+
+    const attackerStatsBefore = game.stats().stats()[player1.clientID()!];
+    const warGoldBefore = attackerStatsBefore?.gold?.[GOLD_INDEX_WAR] ?? 0n;
+
+    performAttack(game, player1, player2);
+
+    const attackerStatsAfter = game.stats().stats()[player1.clientID()!];
+    const warGoldAfter = attackerStatsAfter?.gold?.[GOLD_INDEX_WAR] ?? 0n;
+
+    expect(warGoldAfter).toBe(warGoldBefore);
+  });
+
+  test("should increase war gold stat when elimination occurs via territory annexation", () => {
+    // Player2 must attack to be considered active (otherwise gold won't transfer)
+    game.addExecution(
+      new AttackExecution(1, player2, game.terraNullius().id()),
+    );
+    game.executeNextTick();
+
+    // Mark every tile on the map as owned by player1
+    for (let x = 0; x < game.map().width(); x++) {
+      for (let y = 0; y < game.map().height(); y++) {
+        player1.conquer(game.ref(x, y));
+      }
+    }
+    // Place tiles of player2 in the center of the map
+    const centerX = Math.round(game.map().width() / 2);
+    const centerY = Math.round(game.map().height() / 2);
+    for (let x = -20; x < 20; x++) {
+      for (let y = -20; y < 20; y++) {
+        player2.conquer(game.ref(centerX + x, centerY + y));
+      }
+    }
+
+    performAttack(game, player1, player2);
+    expectWarGoldStatIsIncreasedAfterKill(game, player1, player2);
+  });
+
+  test("records the merged total as the largest incoming attack, not one click", () => {
+    player1.addTroops(1000);
+    for (let i = 0; i < 3; i++) {
+      game.addExecution(new AttackExecution(20, player1, player2.id()));
+    }
+    game.executeNextTick();
+
+    const attacks = game.stats().stats()[player2.clientID()!]?.attacks;
+    expect(attacks?.[ATTACK_INDEX_RECV]).toBe(60n);
+    expect(attacks?.[ATTACK_INDEX_MAX_RECV]).toBe(60n);
+  });
+
+  test("records no maximum for an attack that is cancelled out on arrival", () => {
+    player1.addTroops(1000);
+    player2.addTroops(1000);
+    game.addExecution(new AttackExecution(50, player2, player1.id()));
+    game.executeNextTick();
+
+    game.addExecution(new AttackExecution(20, player1, player2.id()));
+    game.executeNextTick();
+
+    const attacks = game.stats().stats()[player2.clientID()!]?.attacks;
+    // The pre-existing RECV accounting still counts the launch, unchanged.
+    expect(attacks?.[ATTACK_INDEX_RECV]).toBe(20n);
+    expect(attacks?.[ATTACK_INDEX_MAX_RECV]).toBeUndefined();
+  });
+});
+
+function expectWarGoldStatIsIncreasedAfterKill(
+  game: Game,
+  attacker: Player,
+  defender: Player,
+) {
+  // Verify that the defender was killed as a result of the attack
+  expect(attacker.isAlive()).toBeTruthy();
+  expect(defender.isAlive()).toBeFalsy();
+
+  const attackerStats = game.stats().stats()[attacker.clientID()!];
+  const defenderStats = game.stats().stats()[defender.clientID()!];
+
+  // Conqueror receives 50% of human defender's gold as war gold
+  expect(attackerStats?.gold?.[GOLD_INDEX_WAR]).toBeDefined();
+  expect(defenderStats?.gold?.[GOLD_INDEX_WORK]).toBeDefined();
+  expect(attackerStats?.gold?.[GOLD_INDEX_WAR]).toBe(
+    (defenderStats?.gold?.reduce((acc, g) => acc + g, 0n) ?? 0n) / 2n,
+  );
+}
+
+function performAttack(game: Game, attacker: Player, defender: Player) {
+  // Execute the attack
+  game.addExecution(
+    new AttackExecution(attacker.troops(), attacker, defender.id()),
+  );
+  // Wait for the attack to complete
+  do {
+    game.executeNextTick();
+  } while (attacker.outgoingAttacks().length > 0);
+}

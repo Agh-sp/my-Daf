@@ -1,0 +1,174 @@
+import { html } from "lit";
+import { customElement } from "lit/decorators.js";
+import { tempTokenLogin } from "./Auth";
+import { BaseModal } from "./components/BaseModal";
+import "./components/Difficulties";
+import { modalHeader } from "./components/ui/ModalHeader";
+import { showInGameAlert } from "./InGameModal";
+import { translateText } from "./Utils";
+
+@customElement("token-login")
+export class TokenLoginModal extends BaseModal {
+  private isAttemptingLogin = false;
+
+  private retryInterval: NodeJS.Timeout | undefined = undefined;
+
+  private successTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  private loginGeneration = 0;
+
+  private token: string | null = null;
+
+  private email: string | null = null;
+
+  private attemptCount = 0;
+
+  constructor() {
+    super();
+  }
+
+  protected modalConfig() {
+    return { maxWidth: "620px" };
+  }
+
+  protected renderHeaderSlot() {
+    return modalHeader({
+      title: translateText("token_login_modal.title"),
+      onBack: () => this.close(),
+      ariaLabel: translateText("common.back"),
+    });
+  }
+
+  protected renderBody() {
+    return html`
+      <div class="flex-1 flex flex-col gap-4 p-6">
+        ${this.email ? this.loginSuccess(this.email) : this.loggingIn()}
+      </div>
+    `;
+  }
+
+  private loggingIn() {
+    const loggingText = translateText("token_login_modal.title");
+    return html`
+      <div class="flex items-center gap-4">
+        <div
+          class="w-12 h-12 rounded-full border border-blue-400/40 bg-blue-500/10 flex items-center justify-center"
+        >
+          <div
+            class="w-6 h-6 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin"
+          ></div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p class="text-lg font-semibold text-white">${loggingText}</p>
+          <div class="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+            <div class="h-full w-1/2 bg-blue-400/80 animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private loginSuccess(email: string) {
+    const successText = translateText("token_login_modal.success", { email });
+    return html`
+      <div class="flex items-center gap-4">
+        <div
+          class="w-12 h-12 rounded-full border border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center"
+        >
+          <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+        </div>
+        <p class="text-base text-white/90">${successText}</p>
+      </div>
+    `;
+  }
+
+  public openWithToken(token: string): void {
+    this.token = token;
+    this.open();
+  }
+
+  public open(args?: Record<string, unknown>): void {
+    if (!this.token) {
+      return;
+    }
+    super.open(args);
+  }
+
+  protected onOpen(): void {
+    this.loginGeneration++;
+    this.email = null;
+    this.attemptCount = 0;
+    this.isAttemptingLogin = false;
+    clearInterval(this.retryInterval);
+    clearTimeout(this.successTimeout);
+    this.requestUpdate();
+    this.retryInterval = setInterval(() => this.tryLogin(), 3000);
+    void this.tryLogin();
+  }
+
+  protected onClose(): void {
+    this.loginGeneration++;
+    this.token = null;
+    clearInterval(this.retryInterval);
+    clearTimeout(this.successTimeout);
+    this.attemptCount = 0;
+    this.isAttemptingLogin = false;
+  }
+
+  private async tryLogin() {
+    const generation = this.loginGeneration;
+    if (this.isAttemptingLogin) {
+      return;
+    }
+    if (this.attemptCount > 3) {
+      this.close();
+      void showInGameAlert(translateText("error_modal.login_failed"));
+      return;
+    }
+    this.attemptCount++;
+    this.isAttemptingLogin = true;
+    if (this.token === null) {
+      this.close();
+      return;
+    }
+    try {
+      const result = await tempTokenLogin(this.token);
+      if (generation !== this.loginGeneration) {
+        return;
+      }
+      if (result.status === "retry") {
+        return;
+      }
+      if (result.status === "failed") {
+        // Permanent failures cannot succeed with another attempt.
+        clearInterval(this.retryInterval);
+        this.close();
+        const messageKey = {
+          consumed: "error_modal.login_token_consumed",
+          expired: "error_modal.login_token_expired",
+          invalid: "error_modal.login_token_invalid",
+        }[result.code];
+        void showInGameAlert(translateText(messageKey));
+        return;
+      }
+      this.email = result.email;
+      clearInterval(this.retryInterval);
+      this.successTimeout = setTimeout(() => {
+        if (generation !== this.loginGeneration) {
+          return;
+        }
+        this.close();
+        window.location.reload();
+      }, 1000);
+      this.requestUpdate();
+    } catch (e) {
+      if (generation === this.loginGeneration) {
+        console.error(e);
+      }
+    } finally {
+      if (generation === this.loginGeneration) {
+        this.isAttemptingLogin = false;
+      }
+    }
+  }
+}

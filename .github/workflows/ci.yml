@@ -1,0 +1,111 @@
+name: 🧪 CI
+
+on:
+  merge_group:
+    types:
+      - checks_requested
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  build:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Setup npm
+        run: npm install --global --ignore-scripts npm@12.1.0
+      - run: npm ci
+      # Root project plus each package's own tsconfig (engine, engine-api and
+      # engine-lib get no DOM and no Node types).
+      - run: npm run typecheck
+      - run: npm run build-prod
+      - uses: actions/upload-artifact@v7
+        with:
+          path: out/index.html
+          retention-days: 1
+  test:
+    name: 🔬 Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+      - name: Setup node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Setup npm
+        run: npm install --global --ignore-scripts npm@12.1.0
+      - run: npm ci
+      - run: npm run test:coverage
+
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Setup npm
+        run: npm install --global --ignore-scripts npm@12.1.0
+      - run: npm ci
+      - run: npm run lint:github
+
+  prettier:
+    name: 🎨 Prettier
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Setup npm
+        run: npm install --global --ignore-scripts npm@12.1.0
+      - run: npm ci
+      - run: npx prettier --check .
+
+  gen-maps:
+    name: 🗺️ Generated maps up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Setup npm
+        run: npm install --global --ignore-scripts npm@12.1.0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: map-generator/go.mod
+          cache-dependency-path: map-generator/go.sum
+      - run: npm ci
+      - run: npm run gen-maps
+      - name: Check for diff
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated maps are out of date — run 'npm run gen-maps' and commit the result."
+            git status --short
+            git --no-pager diff
+            exit 1
+          fi

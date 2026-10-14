@@ -1,0 +1,120 @@
+/**
+ * The "Disable emojis" setting must also suppress received emojis in the
+ * events feed (not just the in-world / overlay display). Regression test for
+ * #4430 — EventsDisplay.onEmojiMessageEvent must early-return when the setting
+ * is off.
+ */
+
+vi.mock("lit", () => ({
+  html: (strings: TemplateStringsArray, ...values: unknown[]) => ({
+    strings,
+    values,
+  }),
+  LitElement: class extends EventTarget {
+    requestUpdate() {}
+  },
+}));
+
+vi.mock("lit/decorators.js", () => ({
+  customElement: () => (clazz: unknown) => clazz,
+  state: () => () => {},
+  property: () => () => {},
+  query: () => () => {},
+}));
+
+vi.mock("lit/directive.js", () => ({}));
+vi.mock("lit/directives/unsafe-html.js", () => ({
+  unsafeHTML: (s: string) => s,
+}));
+
+vi.mock("../../../../src/client/Utils", () => ({
+  translateText: vi.fn((key: string) => key),
+  getMessageTypeClasses: vi.fn(() => ""),
+}));
+vi.mock("@openfront/engine-lib/Format", () => ({
+  renderNumber: vi.fn(),
+  renderTroops: vi.fn(),
+}));
+
+import { GameUpdateType } from "@openfront/engine-api/game/GameUpdates";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EventsDisplay } from "../../../../src/client/hud/layers/EventsDisplay";
+import { UserSettings } from "../../../../src/client/UserSettings";
+
+function resetSettings() {
+  localStorage.clear();
+  (
+    UserSettings as unknown as { cache: Map<string, string | null> }
+  ).cache.clear();
+}
+
+function setEmojisEnabled(enabled: boolean) {
+  localStorage.setItem("settings.emojis", String(enabled));
+  (
+    UserSettings as unknown as { cache: Map<string, string | null> }
+  ).cache.clear();
+}
+
+describe("EventsDisplay emoji setting (#4430)", () => {
+  let ed: EventsDisplay;
+  const myPlayer = { smallID: () => 1, displayName: () => "Me" };
+  const sender = { smallID: () => 2, displayName: () => "Bob" };
+
+  // A broadcast/direct emoji from Bob addressed to me (recipientID = my smallID).
+  const emojiUpdate = {
+    type: GameUpdateType.Emoji,
+    emoji: { message: "👍", senderID: 2, recipientID: 1, createdAt: 0 },
+  };
+
+  beforeEach(() => {
+    resetSettings();
+    ed = new EventsDisplay();
+    (ed as unknown as { game: unknown }).game = {
+      myPlayer: () => myPlayer,
+      playerBySmallID: (id: number) => (id === 1 ? myPlayer : sender),
+      ticks: () => 0,
+    };
+  });
+
+  it("adds a feed entry for a received emoji when the setting is on", () => {
+    ed.onEmojiMessageEvent(emojiUpdate as never);
+    expect((ed as unknown as { events: unknown[] }).events).toHaveLength(1);
+  });
+
+  it("confirms an emoji I sent to everyone", () => {
+    ed.onEmojiMessageEvent({
+      type: GameUpdateType.Emoji,
+      emoji: {
+        message: "👍",
+        senderID: 1,
+        recipientID: "AllPlayers",
+        createdAt: 0,
+      },
+    } as never);
+    const events = (ed as unknown as { events: { description: string }[] })
+      .events;
+    expect(events).toHaveLength(1);
+    expect(events[0].description).toBe("events_display.sent_emoji_all");
+    // A confirmation, so it goes to the small feed, not the important one.
+    expect((events[0] as { minor?: boolean }).minor).toBe(true);
+  });
+
+  it("adds nothing when the setting is off", () => {
+    setEmojisEnabled(false);
+    ed.onEmojiMessageEvent(emojiUpdate as never);
+    expect((ed as unknown as { events: unknown[] }).events).toHaveLength(0);
+  });
+
+  it("still confirms emojis I sent when the setting is off", () => {
+    setEmojisEnabled(false);
+    ed.onEmojiMessageEvent({
+      type: GameUpdateType.Emoji,
+      emoji: { message: "👍", senderID: 1, recipientID: 2, createdAt: 0 },
+    } as never);
+    const events = (ed as unknown as { events: { description: string }[] })
+      .events;
+    expect(events).toHaveLength(1);
+    expect(events[0].description).toBe("events_display.sent_emoji");
+    expect((events[0] as { minor?: boolean }).minor).toBe(true);
+  });
+});

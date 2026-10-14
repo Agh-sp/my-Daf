@@ -1,0 +1,331 @@
+import {
+  PlayerInfo,
+  PlayerType,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
+import {
+  ATTACK_INDEX_MAX_RECV,
+  ATTACK_INDEX_RECV,
+  PlayerStats,
+} from "@openfront/engine-api/StatsSchemas";
+import { Game, Player } from "@openfront/engine/game/Game";
+import { Stats } from "@openfront/engine/game/Stats";
+import { StatsImpl } from "@openfront/engine/game/StatsImpl";
+import { replacer } from "@openfront/shared/SharedUtil";
+import { setup } from "./util/Setup";
+
+let stats: Stats;
+let game: Game;
+let player1: Player;
+let player2: Player;
+
+/** stats.stats() indexes by clientID into a record whose values are
+ * themselves optional, so `.client2` alone is `PlayerStats | undefined`. */
+function client2Stats(): NonNullable<PlayerStats> {
+  const s = stats.stats().client2;
+  expect(s).toBeDefined();
+  return s!;
+}
+
+describe("Stats", () => {
+  beforeEach(async () => {
+    stats = new StatsImpl();
+    game = await setup("half_land_half_ocean", {}, [
+      new PlayerInfo("boat dude", PlayerType.Human, "client1", "player_1_id"),
+      new PlayerInfo("boat dude", PlayerType.Human, "client2", "player_2_id"),
+    ]);
+
+    player1 = game.player("player_1_id");
+    player2 = game.player("player_2_id");
+  });
+
+  test("attack", () => {
+    stats.attack(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        attacks: [1n],
+      },
+      client2: {
+        attacks: [0n, 1n],
+      },
+    });
+  });
+
+  test("attackCancel", () => {
+    stats.attackCancel(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        attacks: [-1n, 0n, 1n],
+      },
+      client2: {
+        attacks: [0n, -1n],
+      },
+    });
+  });
+
+  test("records the largest single incoming attack, not the sum", () => {
+    stats.attack(player1, player2, 10);
+    stats.attackMaxIncoming(player2, 10);
+    stats.attack(player1, player2, 50);
+    stats.attackMaxIncoming(player2, 50);
+    stats.attack(player1, player2, 20);
+    stats.attackMaxIncoming(player2, 20);
+    const recv = client2Stats().attacks!;
+    expect(recv[ATTACK_INDEX_RECV]).toBe(80n);
+    expect(recv[ATTACK_INDEX_MAX_RECV]).toBe(50n);
+  });
+
+  test("attackCancel does not lower the recorded maximum", () => {
+    stats.attack(player1, player2, 50);
+    stats.attackMaxIncoming(player2, 50);
+    stats.attackCancel(player1, player2, 50);
+    const recv = client2Stats().attacks!;
+    expect(recv[ATTACK_INDEX_RECV]).toBe(0n);
+    expect(recv[ATTACK_INDEX_MAX_RECV]).toBe(50n);
+  });
+
+  test("attack alone records no maximum -- that is attackMaxIncoming's job", () => {
+    stats.attack(player1, player2, 50);
+    const recv = client2Stats().attacks!;
+    expect(recv[ATTACK_INDEX_RECV]).toBe(50n);
+    expect(recv[ATTACK_INDEX_MAX_RECV]).toBeUndefined();
+  });
+
+  test("attackMaxIncoming ignores a non-player target", () => {
+    stats.attackMaxIncoming(game.terraNullius(), 50);
+    expect(stats.stats()).toStrictEqual({});
+  });
+
+  test("betray", () => {
+    stats.betray(player1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        betrayals: 1n,
+      },
+    });
+  });
+
+  test("boatSendTrade", () => {
+    stats.boatSendTrade(player1, player2);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: {
+          trade: [1n],
+        },
+      },
+    });
+  });
+
+  test("boatArriveTrade", () => {
+    stats.boatArriveTrade(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: { trade: [0n, 1n] },
+        gold: [0n, 0n, 1n],
+      },
+      client2: {
+        gold: [0n, 0n, 1n],
+      },
+    });
+  });
+
+  test("boatCapturedTrade", () => {
+    stats.boatCapturedTrade(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: { trade: [0n, 0n, 1n] },
+        gold: [0n, 0n, 0n, 1n],
+      },
+    });
+  });
+
+  test("boatDestroyTrade", () => {
+    stats.boatDestroyTrade(player1, player2);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: { trade: [0n, 0n, 0n, 1n] },
+      },
+    });
+  });
+
+  test("boatSendTroops", () => {
+    stats.boatSendTroops(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: {
+          trans: [1n],
+        },
+      },
+    });
+  });
+
+  test("boatArriveTroops", () => {
+    stats.boatArriveTroops(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: { trans: [0n, 1n] },
+      },
+    });
+  });
+
+  test("boatDestroyTroops", () => {
+    stats.boatDestroyTroops(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        boats: { trans: [0n, 0n, 0n, 1n] },
+      },
+    });
+  });
+
+  test("bombLaunch", () => {
+    stats.bombLaunch(player1, player2, UnitType.AtomBomb);
+    expect(stats.stats()).toStrictEqual({
+      client1: { bombs: { abomb: [1n] } },
+    });
+  });
+
+  test("ballistic missile stats are tracked separately", () => {
+    stats.bombLaunch(player1, player2, UnitType.BallisticMissile);
+    expect(stats.stats()).toStrictEqual({
+      client1: { bombs: { ballistic: [1n] } },
+    });
+  });
+
+  test("bombLand", () => {
+    stats.bombLand(player1, player2, UnitType.HydrogenBomb);
+    expect(stats.stats()).toStrictEqual({
+      client1: { bombs: { hbomb: [0n, 1n] } },
+    });
+  });
+
+  test("bombIntercept", () => {
+    stats.bombIntercept(player1, UnitType.MIRVWarhead, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: { bombs: { mirvw: [0n, 0n, 1n] } },
+    });
+  });
+
+  test("goldWar", () => {
+    stats.goldWar(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        gold: [0n, 1n],
+        conquests: [1n],
+      },
+    });
+    stats.goldWar(player1, player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        gold: [0n, 2n],
+        conquests: [2n],
+      },
+    });
+  });
+
+  test("goldWork", () => {
+    stats.goldWork(player1, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: { gold: [1n] },
+    });
+  });
+
+  test("train trade gold", () => {
+    stats.trainSelfTrade(player1, 2);
+    stats.trainExternalTrade(player2, 1);
+    expect(stats.stats()).toStrictEqual({
+      client1: { gold: [0n, 0n, 0n, 0n, 2n] },
+      client2: { gold: [0n, 0n, 0n, 0n, 0n, 1n] },
+    });
+  });
+
+  test("unitBuild", () => {
+    stats.unitBuild(player1, UnitType.City);
+    expect(stats.stats()).toStrictEqual({
+      client1: { units: { city: [1n] } },
+    });
+  });
+
+  test("unitCapture", () => {
+    stats.unitCapture(player1, UnitType.DefensePost);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        units: {
+          defp: [0n, 0n, 1n],
+        },
+      },
+    });
+  });
+
+  test("unitDestroy", () => {
+    stats.unitDestroy(player1, UnitType.MissileSilo);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        units: {
+          silo: [0n, 1n],
+        },
+      },
+    });
+  });
+
+  test("unitLose", () => {
+    stats.unitLose(player1, UnitType.Port);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        units: {
+          port: [0n, 0n, 0n, 1n],
+        },
+      },
+    });
+  });
+
+  test("playerKilled", () => {
+    stats.playerKilled(player1, 10);
+    stats.playerKilled(player2, 40);
+    expect(stats.stats()).toStrictEqual({
+      client1: {
+        killedAt: 10n,
+      },
+      client2: {
+        killedAt: 40n,
+      },
+    });
+  });
+
+  test("recordKill", () => {
+    stats.recordKill(player1, player2, 30);
+    stats.recordKill(player1, player2, 35);
+    expect(stats.getPlayerStats(player1)?.kills).toStrictEqual([
+      { victim: "client2", tick: 30n },
+      { victim: "client2", tick: 35n },
+    ]);
+    expect(stats.getPlayerStats(player2)?.kills).toBeUndefined();
+  });
+
+  test("stringify", () => {
+    stats.unitLose(player1, UnitType.Port);
+    expect(JSON.stringify(stats.stats(), replacer)).toBe(
+      '{"client1":{"units":{"port":["0","0","0","1"]}}}',
+    );
+  });
+
+  test("recordFinalTiles", () => {
+    stats.recordFinalTiles(player1, 42);
+    expect(stats.getPlayerStats(player1)?.finalTiles).toBe(42n);
+  });
+
+  test("setWinner snapshots finalTiles for each player", () => {
+    let count = 0;
+    game.map().forEachTile((tile) => {
+      if (count >= 5) return;
+      if (!game.map().isLand(tile)) return;
+      player1.conquer(tile);
+      count++;
+    });
+    game.setWinner(player1, game.stats().stats());
+    const tiles = player1.numTilesOwned();
+    expect(tiles).toBeGreaterThan(0);
+    expect(game.stats().getPlayerStats(player1)?.finalTiles).toBe(
+      BigInt(tiles),
+    );
+  });
+});

@@ -1,0 +1,427 @@
+# API Usage
+
+## Games
+
+### List Game Metadata
+
+Get game IDs and basic metadata for games that started within a specified time range. Results are sorted by start time and paginated.
+
+**Constraints:**
+
+- Maximum time range: 2 days
+- Maximum limit per request: 1000 games
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/games
+```
+
+**Query Parameters:**
+
+- `start` (required): ISO 8601 timestamp
+- `end` (required): ISO 8601 timestamp
+- `type` (optional): Game type, must be one of `[Private, Public, Singleplayer]`
+- `mode` (optional): Game mode, must be one of `[Free For All, Team]`
+- `rankedType` (optional): Ranked type, must be one of `[unranked, 1v1, 2v2]`
+- `playerTeams` (optional): Player team configuration (e.g. `Duos`)
+- `limit` (optional): Number of results (max 1000, default 50)
+- `offset` (optional): Pagination offset
+
+**Example Request:**
+
+```bash
+curl "https://api.openfront.io/public/games?start=2025-10-25T00:00:00Z&end=2025-10-26T23:59:59Z&type=Public&mode=Team&rankedType=unranked&limit=10&offset=5"
+```
+
+**Response:**
+
+```json
+[
+  {
+    "game": "ABSgwin6",
+    "start": "2025-10-25T00:00:10.526Z",
+    "end": "2025-10-25T00:19:45.187Z",
+    "type": "Public",
+    "mode": "Team",
+    "difficulty": "Medium",
+    "numPlayers": 6,
+    "maxPlayers": 8,
+    "lobbyFillTime": 45000,
+    "playerTeams": "Duos",
+    "rankedType": "unranked"
+  }
+]
+```
+
+The response includes a `Content-Range` header indicating pagination (e.g., `games 5-15/399`).
+
+---
+
+### Get Game Info
+
+Retrieve detailed information about a specific game.
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/game/:gameId
+```
+
+**Query Parameters:**
+
+- `turns` (optional): Set to `false` to exclude turn data and reduce response size
+
+**Examples:**
+
+```bash
+# Full game data
+curl "https://api.openfront.io/public/game/ABSgwin6"
+
+# Without turn data
+curl "https://api.openfront.io/public/game/ABSgwin6?turns=false"
+```
+
+**Note:** Public player IDs are stripped from game records for privacy.
+
+## Players
+
+### Get Player Info
+
+Retrieve information and stats for a specific player.
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/player/:playerId
+```
+
+**Example:**
+
+```bash
+curl "https://api.openfront.io/public/player/HabCsQYR"
+```
+
+### Get Player Sessions
+
+Retrieve a list of games & client ids (session ids) for a specific player,
+returned newest game first in pages of 100 with keyset (cursor) pagination
+like [Get Player Games](#get-player-games).
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/player/:playerId/sessions
+```
+
+**Query Parameters:**
+
+- `filter` (optional): Mode bucket, one of `[ffa, team, hvn, ranked]`. Omit for all modes.
+- `type` (optional): Game type, one of `[public, private, singleplayer]`. Omit for all types. `filter` and `type` are orthogonal and may be combined.
+- `start` / `end` (optional): ISO 8601 datetimes bounding the game start time (inclusive). Each may be given alone; `start` must be before `end`.
+- `cursor` (optional): Opaque continuation token. Pass the `nextCursor` value from the previous response verbatim to fetch the next page — do not construct or parse it. A cursor is bound to the filters it was issued under; changing any other parameter requires starting over without a cursor.
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "gameId": "abc123",
+      "gameStart": "2026-05-17T21:04:00.000Z",
+      "gameEnd": "2026-05-17T21:24:34.000Z",
+      "gameType": "Public",
+      "gameMode": "Team",
+      "gameRankedType": "unranked",
+      "clientId": "client-session-id",
+      "username": "alice",
+      "clanTag": "ABC",
+      "hasWon": true
+    }
+  ],
+  "nextCursor": "opaque-token"
+}
+```
+
+- `nextCursor` is `null` when there are no more sessions.
+- A known player with no sessions returns an empty `results` array; 404 means
+  the player id is unknown.
+
+**Example:**
+
+```bash
+curl "https://api.openfront.io/public/player/HabCsQYR/sessions"
+```
+
+### Get Player Games
+
+Retrieve a player's personal game history, newest first. Uses keyset (cursor)
+pagination rather than the `page`/`limit` scheme used elsewhere.
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/player/:playerId/games
+```
+
+**Query Parameters:**
+
+- `filter` (optional): Mode bucket, one of `[ffa, team, hvn, ranked]`. Omit for all modes.
+- `type` (optional): Game type, one of `[public, private, singleplayer]`. Omit for all types. `filter` and `type` are orthogonal and may be combined.
+- `cursor` (optional): Opaque continuation token. Pass the `nextCursor` value from the previous response verbatim to fetch the next page — do not construct or parse it.
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "gameId": "abc123",
+      "start": "2026-05-17T21:04:00.000Z",
+      "durationSeconds": 1234,
+      "map": "World",
+      "mode": "Team",
+      "type": "Public",
+      "playerTeams": "Duos",
+      "rankedType": "unranked",
+      "result": "victory",
+      "totalPlayers": 8,
+      "username": "alice",
+      "clanTag": "ABC"
+    }
+  ],
+  "nextCursor": "opaque-token"
+}
+```
+
+- `result` is one of `[victory, defeat, incomplete]` (`incomplete` = no recorded winner).
+- `playerTeams`, `totalPlayers`, and `clanTag` may be `null`.
+- `nextCursor` is `null` when there are no more games.
+- `username`/`clanTag` reflect the identity the player used in that specific game.
+
+**Example:**
+
+```bash
+curl "https://api.openfront.io/public/player/HabCsQYR/games?filter=team&type=public"
+```
+
+### Recently Deleted Players
+
+List the public ids of players deleted in the last 7 days, newest first. Poll
+this daily and delete those players from any data you have collected.
+
+Pass `since` (the `deletedAt` of your last sync, or the time you last polled)
+to fetch only newer deletions. Deletions are never returned more than 7 days
+after the fact: a `since` more than 7 days in the past is rejected with a 400.
+If you miss the window, reconcile instead by dropping any player whose
+`/public/player/:playerId` now returns 404.
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/players/recently-deleted
+```
+
+**Query Parameters:**
+
+- `since` (optional): ISO 8601 timestamp; only return players deleted after
+  this time. Must be within the last 7 days.
+
+**Example:**
+
+```bash
+curl "https://api.openfront.io/public/players/recently-deleted?since=2026-09-14T00:00:00Z"
+```
+
+**Response:**
+
+```json
+[
+  {
+    "publicId": "HabCsQYR",
+    "deletedAt": "2026-09-14T08:12:33.000Z"
+  }
+]
+```
+
+### Verify Account Ownership (Identity Tokens)
+
+Third-party sites can let a player prove which OpenFront account they own. The
+player picks your site under **Account settings → Link to a third-party site**,
+generates a token, and pastes it into your site. You check the token, link the
+returned `publicId` to your user once, and discard the token.
+
+Tokens are only accepted by the site they were generated for (the JWT `aud`
+claim is your domain), expire after 10 minutes, and carry no identity other
+than the player's public ID. They cannot be used to log in to OpenFront.
+
+Supported sites: `ofstats.io`, `trackerfront.io`. To add your site, ask the
+OpenFront team. Sites are managed from the admin panel, so no deploy is
+needed; a new site appears in the game within a few minutes.
+
+You can check a token in either of two ways.
+
+**Option 1: call the validate endpoint.**
+
+```
+POST https://api.openfront.io/public/identity_token/validate
+```
+
+**Body:**
+
+- `token`: The token the player pasted
+- `audience`: Your site, e.g. `ofstats.io`
+
+**Example:**
+
+```bash
+curl -X POST "https://api.openfront.io/public/identity_token/validate" \
+  -H "Content-Type: application/json" \
+  -d '{"token": "eyJ...", "audience": "ofstats.io"}'
+```
+
+**Response:**
+
+```json
+{
+  "publicId": "T8pcWNuC",
+  "expiresAt": "2026-09-25T03:36:56.000Z"
+}
+```
+
+A token that is invalid, expired, or was generated for a different site returns 400.
+
+**Option 2: verify the JWT yourself.** Tokens are EdDSA-signed JWTs. Verify the
+signature against `https://api.openfront.io/.well-known/jwks.json` and check
+that:
+
+- `iss` is `https://api.openfront.io`
+- `aud` is your own domain
+- `typ` is `"identity"`
+- `exp` has not passed
+
+The player's public ID is the `sub` claim.
+
+**Example payload:**
+
+```json
+{
+  "typ": "identity",
+  "sub": "T8pcWNuC",
+  "iat": 1790306816,
+  "exp": 1790307416,
+  "iss": "https://api.openfront.io",
+  "aud": "ofstats.io"
+}
+```
+
+## Clans
+
+### Clan Leaderboard
+
+Shows the top 100 clans by `weighted wins`.
+
+**Endpoint:**
+
+```
+GET https://api.openfront.io/public/clans/leaderboard
+```
+
+Weighted wins have a half-life of 30 days to favor recent wins.
+
+Weighted wins are calculated using the following formula:
+
+```
+FUNCTION calculateScore(session: ClanSession, decay: NUMBER = 1) → NUMBER
+    // 1. Calculate average team size
+    avgTeamSize ← session.totalPlayerCount ÷ session.numTeams
+
+    // 2. Determine how much the clan contributed to their team
+    //    (clan players divided by average players per team)
+    clanMemberRatio ← session.clanPlayerCount ÷ avgTeamSize
+
+    // 3. Apply decay factor (e.g., for older sessions)
+    weightedValue ← clanMemberRatio × decay
+
+    // 4. Calculate match difficulty based on number of teams
+    //    More teams → harder to win → higher reward for victory
+    //    Uses square root to avoid extreme scaling
+    difficulty ← MAX(1, √(session.numTeams - 1))
+
+    // 5. Return final score:
+    //    - Win:  reward is multiplied by difficulty
+    //    - Loss: penalty is divided by difficulty (less punishment in harder matches)
+    IF session.hasWon THEN
+        RETURN weightedValue × difficulty
+    ELSE
+        RETURN weightedValue ÷ difficulty
+    END IF
+END FUNCTION
+```
+
+### Clan stats
+
+Displays comprehensive clan performance statistics for a specified clan over a chosen time range. If no time range is provided, it shows lifetime stats (starting from early November 2025).
+
+Key metrics include:
+
+- Total games, wins, losses, and win rate
+- Win/loss ratio and weighted win/loss ratio\* broken down by:
+  - Team type (e.g., 2 teams, 3 teams, duos, trios, etc)
+  - Number of teams in the game (2 teams, 5 teams, 20 teams, etc)
+
+**Note:** No decay is used, so weighted wins will be different from in the leaderboard.
+
+**Endpoint**
+
+```
+GET https://openfront.io/public/clan/:clanTag
+```
+
+**Query Parameters:**
+
+- `start` (optional): ISO 8601 timestamp
+- `end` (optional): ISO 8601 timestamp
+
+**Example**
+
+```bash
+curl https://api.openfront.io/public/clan/UN?start=2025-11-15T00:00:00Z &
+end=2025-11-18T23:59:59Z
+```
+
+### Clan Sessions
+
+A clan session is created any time a player with that clan tag is in a public team game. If no start or end query parameter is provided, lifetime sessions (starting early November 2025) are shown.
+
+**Endpoint**
+
+```
+GET https://api.openfront.io/public/clan/:clanTag/sessions
+```
+
+**Query Parameters:**
+
+- `start` (optional): ISO 8601 timestamp
+- `end` (optional): ISO 8601 timestamp
+- `page` (optional): Page number, 1-200 (default: 1)
+- `limit` (optional): Results per page, 1-50 (default: 20)
+
+**Response:**
+
+```json
+{
+  "results": [ ... ],
+  "total": 150,
+  "page": 1,
+  "limit": 20
+}
+```
+
+Results are ordered by game start time, newest first.
+
+**Example**
+
+```bash
+curl "https://api.openfront.io/public/clan/UN/sessions?start=2025-11-15T00:00:00Z&end=2025-11-18T23:59:59Z&limit=10&page=1"
+```

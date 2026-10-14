@@ -1,0 +1,38 @@
+name: 🧼 PR
+
+on:
+  merge_group:
+    types:
+      - checks_requested
+  pull_request:
+    types:
+      - demilestoned
+      - edited
+      - milestoned
+      - opened
+      - synchronize
+
+permissions: {}
+
+jobs:
+  has-milestone:
+    name: Has Milestone
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            if (context.eventName === 'merge_group') {
+              // Ignore merge_group events
+            } else if (context.eventName === 'pull_request') {
+              // Get the pull request data
+              const milestone = context.payload.pull_request.milestone;
+              if (!milestone) {
+                core.setFailed('❌ Reviewer must assign a Milestone to this Pull request before merging.');
+                return;
+              }
+              console.log(`✅ Milestone found: ${milestone.title}`);
+            } else {
+              core.setFailed(`❌ Unknown event type ${context.eventName}.`);
+            }

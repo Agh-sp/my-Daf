@@ -1,0 +1,446 @@
+import {
+  type AssetManifest,
+  encodeAssetPath,
+  normalizeAssetPath,
+} from "@openfront/shared/AssetPaths";
+import { createHash } from "crypto";
+import fs from "fs";
+import path from "path";
+
+const HASHED_PUBLIC_ASSET_GLOBS = [
+  "changelog.md",
+  "manifest.json",
+  "atlases/**/*",
+  "cosmetics/**/*",
+  "flags/**/*",
+  "fonts/**/*",
+  "icons/**/*",
+  "images/**/*",
+  "lang/**/*",
+  "maps/**/*",
+  "sounds/**/*",
+  "sprites/**/*",
+] as const;
+
+const manifestCache = new Map<string, AssetManifest>();
+
+// Bump this to force-invalidate all CDN-cached assets (e.g. after a bad deploy with wrong cache headers).
+const CACHE_BUST_VERSION = "3";
+
+type DerivedPublicAssetRenderContext = {
+  resourcesDir: string;
+  relativePath: string;
+  assetManifest: AssetManifest;
+};
+
+type DerivedPublicAssetRenderer = {
+  matches: (relativePath: string) => boolean;
+  render: (context: DerivedPublicAssetRenderContext) => string;
+};
+
+function toPosixPath(filePath: string): string {
+  return filePath.split(path.sep).join(path.posix.sep);
+}
+
+function toRelativePosixPath(
+  rootDir: string,
+  dirent: { parentPath: string; name: string },
+): string {
+  // when cwd is used in globSync, dirent.parentPath is "."
+  const absolutePath = path.join(dirent.parentPath, dirent.name);
+  return toPosixPath(path.relative(rootDir, absolutePath));
+}
+
+function createContentHash(filePath: string): string {
+  const content = fs.readFileSync(filePath);
+  return createHash("sha256")
+    .update(CACHE_BUST_VERSION)
+    .update(content)
+    .digest("hex")
+    .slice(0, 12);
+}
+
+function createStringHash(content: string): string {
+  return createHash("sha256")
+    .update(CACHE_BUST_VERSION)
+    .update(content)
+    .digest("hex")
+    .slice(0, 12);
+}
+
+function createHashedAssetUrl(relativePath: string, hash: string): string {
+  const parsed = path.posix.parse(toPosixPath(relativePath));
+  const hashedFileName = `${parsed.name}.${hash}${parsed.ext}`;
+  const hashedRelativePath = path.posix.join(
+    "_assets",
+    parsed.dir,
+    hashedFileName,
+  );
+  return `/${encodeAssetPath(hashedRelativePath)}`;
+}
+
+function readPublicAssetText(
+  resourcesDir: string,
+  relativePath: string,
+): string {
+  const sourcePath = path.join(resourcesDir, relativePath);
+  return fs.readFileSync(sourcePath, "utf8");
+}
+
+function resolveDerivedAssetReference(
+  relativePath: string,
+  referencePath: string,
+): string {
+  const baseDir = path.posix.dirname(toPosixPath(relativePath));
+  return normalizeAssetPath(path.posix.join(baseDir, referencePath));
+}
+
+function getEmittedAssetRelativePath(
+  fromRelativePath: string,
+  targetHashedUrl: string,
+): string {
+  const emittedFromDir = path.posix.join(
+    "_assets",
+    path.posix.dirname(toPosixPath(fromRelativePath)),
+  );
+  const emittedTargetPath = normalizeAssetPath(targetHashedUrl);
+  return path.posix.relative(emittedFromDir, emittedTargetPath);
+}
+
+function isExternalAssetReference(referencePath: string): boolean {
+  return (
+    /^[a-z][a-z0-9+.-]*:/i.test(referencePath) || referencePath.startsWith("//")
+  );
+}
+
+function renderWebManifestAsset({
+  resourcesDir,
+  assetManifest,
+}: DerivedPublicAssetRenderContext): string {
+  const sourcePath = path.join(resourcesDir, "manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(sourcePath, "utf8")) as {
+    icons?: Array<{ src?: string }>;
+  };
+  manifest.icons = manifest.icons?.map((icon) => {
+    const src = icon.src;
+    if (src === undefined) {
+      return icon;
+    }
+
+    if (src.trim().length === 0) {
+      throw new Error(
+        "Derived asset manifest.json contains an icon with a blank src",
+      );
+    }
+
+    if (isExternalAssetReference(src)) {
+      return icon;
+    }
+
+    const referencedAssetPath = resolveDerivedAssetReference(
+      "manifest.json",
+      src,
+    );
+    const referencedHashedUrl = assetManifest[referencedAssetPath];
+    if (!referencedHashedUrl) {
+      throw new Error(
+        `Derived asset manifest.json references ${referencedAssetPath}, but it is missing from the asset manifest`,
+      );
+    }
+
+    // The browser resolves a manifest icon's src against the manifest's own
+    // URL, and in production that is the CDN's /game_assets prefix, so a
+    // root-relative /_assets/... src would 404 at the CDN origin. Write it
+    // relative to the emitted manifest instead, like the BMFont pages.
+    return {
+      ...icon,
+      src: getEmittedAssetRelativePath("manifest.json", referencedHashedUrl),
+    };
+  });
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
+
+function renderBitmapFontAsset({
+  resourcesDir,
+  relativePath,
+  assetManifest,
+}: DerivedPublicAssetRenderContext): string {
+  const sourceXml = readPublicAssetText(resourcesDir, relativePath);
+  return sourceXml.replace(
+    /(<page\b[^>]*\bfile=)(["'])([^"']+)(["'])/g,
+    (
+      match,
+      prefix: string,
+      openQuote: string,
+      filePath: string,
+      closeQuote: string,
+    ) => {
+      if (openQuote !== closeQuote) {
+        return match;
+      }
+
+      const referencedAssetPath = resolveDerivedAssetReference(
+        relativePath,
+        filePath,
+      );
+      const referencedHashedUrl = assetManifest[referencedAssetPath];
+      if (!referencedHashedUrl) {
+        throw new Error(
+          `Derived asset ${relativePath} references ${referencedAssetPath}, but it is missing from the asset manifest`,
+        );
+      }
+
+      const rewrittenFilePath = getEmittedAssetRelativePath(
+        relativePath,
+        referencedHashedUrl,
+      );
+      return `${prefix}${openQuote}${rewrittenFilePath}${closeQuote}`;
+    },
+  );
+}
+
+const DERIVED_PUBLIC_ASSET_RENDERERS: DerivedPublicAssetRenderer[] = [
+  {
+    matches: (relativePath) => relativePath === "manifest.json",
+    render: renderWebManifestAsset,
+  },
+  {
+    matches: (relativePath) =>
+      relativePath.startsWith("fonts/") && relativePath.endsWith(".xml"),
+    render: renderBitmapFontAsset,
+  },
+];
+
+function getDerivedPublicAssetRenderer(
+  relativePath: string,
+): DerivedPublicAssetRenderer | undefined {
+  return DERIVED_PUBLIC_ASSET_RENDERERS.find((renderer) =>
+    renderer.matches(relativePath),
+  );
+}
+
+export function isDerivedPublicAsset(relativePath: string): boolean {
+  return (
+    getDerivedPublicAssetRenderer(normalizeAssetPath(relativePath)) !==
+    undefined
+  );
+}
+
+function renderDerivedPublicAsset(
+  resourcesDir: string,
+  relativePath: string,
+  assetManifest: AssetManifest,
+): string | null {
+  const normalizedPath = normalizeAssetPath(relativePath);
+  const renderer = getDerivedPublicAssetRenderer(normalizedPath);
+  if (!renderer) {
+    return null;
+  }
+
+  return renderer.render({
+    resourcesDir,
+    relativePath: normalizedPath,
+    assetManifest,
+  });
+}
+
+export function getResourcesDir(rootDir: string = process.cwd()): string {
+  return path.join(rootDir, "resources");
+}
+
+// Everything under resources/public/ is served verbatim at the site root, with
+// stable URLs: the policy pages, robots.txt, the press kit (whose image URLs
+// outlets hotlink), and Apple Pay's domain-verification file.
+export function getPublicDir(resourcesDir: string): string {
+  return path.join(resourcesDir, "public");
+}
+
+export function getProprietaryDir(rootDir: string = process.cwd()): string {
+  return path.join(rootDir, "proprietary");
+}
+
+// Scans directories with synchronous fs.existsSync — assumes a small number of sourceDirs.
+function resolveSourceDir(relativePath: string, sourceDirs: string[]): string {
+  for (const dir of sourceDirs) {
+    const candidate = path.join(dir, relativePath);
+    if (fs.existsSync(candidate)) {
+      return dir;
+    }
+  }
+  throw new Error(
+    `Asset ${relativePath} not found in any source directory: ${sourceDirs.join(", ")}`,
+  );
+}
+
+function resolveSourceFile(relativePath: string, sourceDirs: string[]): string {
+  return path.join(resolveSourceDir(relativePath, sourceDirs), relativePath);
+}
+
+export function listHashedPublicAssetPaths(sourceDirs: string[]): string[] {
+  const files = new Set<string>();
+  for (const sourceDir of sourceDirs) {
+    if (!fs.existsSync(sourceDir)) continue;
+    for (const pattern of HASHED_PUBLIC_ASSET_GLOBS) {
+      for (const dirent of fs.globSync(pattern, {
+        cwd: sourceDir,
+        withFileTypes: true, // return dirent to exclude directories (like nodir: true)
+        exclude: ["**/.*", ".*"], // .gitignore etc (like dot: false)
+      })) {
+        if (dirent.isDirectory()) continue;
+        files.add(normalizeAssetPath(toRelativePosixPath(sourceDir, dirent))); // convert dirent (like posix:true)
+      }
+    }
+  }
+  return [...files].sort();
+}
+
+// A plain walk rather than a glob: dot-directories (.well-known) are served too.
+export function listRootPublicFiles(publicDir: string): string[] {
+  if (!fs.existsSync(publicDir)) return [];
+  return fs
+    .readdirSync(publicDir, { recursive: true, withFileTypes: true })
+    .filter((dirent) => dirent.isFile() && dirent.name !== ".DS_Store")
+    .map((dirent) => normalizeAssetPath(toRelativePosixPath(publicDir, dirent)))
+    .sort();
+}
+
+export function buildPublicAssetManifest(sourceDirs: string[]): AssetManifest {
+  const cacheKey = sourceDirs.join("\0");
+  const cached = manifestCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const hashedPublicAssetPaths = listHashedPublicAssetPaths(sourceDirs);
+  const rawAssetPaths = hashedPublicAssetPaths.filter(
+    (relativePath) => !isDerivedPublicAsset(relativePath),
+  );
+  const derivedAssetPaths = hashedPublicAssetPaths.filter((relativePath) =>
+    isDerivedPublicAsset(relativePath),
+  );
+
+  const manifest: AssetManifest = {};
+  for (const relativePath of rawAssetPaths) {
+    const absolutePath = resolveSourceFile(relativePath, sourceDirs);
+    const hash = createContentHash(absolutePath);
+    manifest[relativePath] = createHashedAssetUrl(relativePath, hash);
+  }
+
+  for (const relativePath of derivedAssetPaths) {
+    const renderedAsset = renderDerivedPublicAsset(
+      resolveSourceDir(relativePath, sourceDirs),
+      relativePath,
+      manifest,
+    );
+    if (renderedAsset === null) {
+      throw new Error(`Missing derived asset renderer for ${relativePath}`);
+    }
+
+    manifest[relativePath] = createHashedAssetUrl(
+      relativePath,
+      createStringHash(renderedAsset),
+    );
+  }
+
+  manifestCache.set(cacheKey, manifest);
+  return manifest;
+}
+
+export function clearPublicAssetManifestCache(): void {
+  manifestCache.clear();
+}
+
+export function createHashedPublicAssetFiles(
+  sourceDirs: string[],
+  outDir: string,
+  assetManifest: AssetManifest,
+): void {
+  for (const [relativePath, hashedUrl] of Object.entries(assetManifest)) {
+    const sourceDir = resolveSourceDir(relativePath, sourceDirs);
+    const sourcePath = path.join(sourceDir, relativePath);
+    const outputPath = path.join(outDir, normalizeAssetPath(hashedUrl));
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+
+    const renderedAsset = renderDerivedPublicAsset(
+      sourceDir,
+      relativePath,
+      assetManifest,
+    );
+    if (renderedAsset !== null) {
+      fs.writeFileSync(outputPath, renderedAsset);
+      continue;
+    }
+
+    fs.copyFileSync(sourcePath, outputPath);
+  }
+}
+
+export function copyRootPublicFiles(publicDir: string, outDir: string): void {
+  for (const relativePath of listRootPublicFiles(publicDir)) {
+    const sourcePath = path.join(publicDir, relativePath);
+    const outputPath = path.join(outDir, relativePath);
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.copyFileSync(sourcePath, outputPath);
+  }
+}
+
+// Path -> content type for every root file, plus a "<dir>/" entry for each
+// directory with an index.html. The site Worker serves exactly what this lists,
+// from sites/<site>/v/<short>/root/<path> (update.sh uploads both).
+export type RootFilesIndex = Record<string, string>;
+
+export const ROOT_FILES_INDEX = "root-files.json";
+
+const ROOT_FILE_TYPES: Record<string, string> = {
+  "": "text/plain; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+};
+
+function rootFileContentType(relativePath: string): string {
+  const ext = path.posix.extname(relativePath).toLowerCase();
+  const type = ROOT_FILE_TYPES[ext];
+  if (type === undefined) {
+    throw new Error(
+      `No content type for root file ${relativePath}; add ${ext} to ROOT_FILE_TYPES`,
+    );
+  }
+  return type;
+}
+
+export function buildRootFilesIndex(publicDir: string): RootFilesIndex {
+  const index: RootFilesIndex = {};
+  for (const relativePath of listRootPublicFiles(publicDir)) {
+    const contentType = rootFileContentType(relativePath);
+    index[relativePath] = contentType;
+    if (path.posix.basename(relativePath) === "index.html") {
+      const dir = path.posix.dirname(relativePath);
+      if (dir !== ".") index[`${dir}/`] = contentType;
+    }
+  }
+  return index;
+}
+
+export function writeRootFilesIndex(publicDir: string, outDir: string): void {
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(outDir, ROOT_FILES_INDEX),
+    `${JSON.stringify(buildRootFilesIndex(publicDir), null, 2)}\n`,
+  );
+}
+
+export function writePublicAssetManifest(
+  outDir: string,
+  assetManifest: AssetManifest,
+): void {
+  const manifestPath = path.join(outDir, "asset-manifest.json");
+  fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+  fs.writeFileSync(manifestPath, `${JSON.stringify(assetManifest, null, 2)}\n`);
+}

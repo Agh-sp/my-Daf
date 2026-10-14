@@ -1,0 +1,27 @@
+import { PlayerInfo, PlayerType } from "@openfront/engine-api/game/GameTypes";
+import { GameID } from "@openfront/engine-api/Schemas";
+import { SpawnExecution } from "@openfront/engine/execution/SpawnExecution";
+import { Player } from "@openfront/engine/game/Game";
+import { setup } from "./util/Setup";
+
+describe("Territory management", () => {
+  test("player owns the tile it spawns on", async () => {
+    const game = await setup("plains");
+    const gameID: GameID = "game_id";
+    game.addPlayer(
+      new PlayerInfo("test_player", PlayerType.Human, null, "test_id"),
+    );
+    const spawnTile = game.map().ref(50, 50);
+    game.addExecution(
+      new SpawnExecution(gameID, game.player("test_id").info(), spawnTile),
+    );
+    // Init the execution
+    game.executeNextTick();
+    // Execute the execution.
+    game.executeNextTick();
+
+    const owner = game.owner(spawnTile);
+    expect(owner.isPlayer()).toBe(true);
+    expect((owner as Player).name()).toBe("test_player");
+  });
+});

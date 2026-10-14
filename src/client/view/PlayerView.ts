@@ -1,0 +1,651 @@
+import { ClientID } from "@openfront/engine-api/Schemas";
+import { TileRef } from "@openfront/engine-api/game/GameMap";
+import {
+  BuildableUnit,
+  Cell,
+  EmojiMessage,
+  Gold,
+  NameViewData,
+  PlayerActions,
+  PlayerBorderTiles,
+  PlayerBuildableUnitType,
+  PlayerID,
+  PlayerProfile,
+  PlayerType,
+  Team,
+  Tick,
+  UnitType,
+} from "@openfront/engine-api/game/GameTypes";
+import {
+  AllianceView,
+  AttackUpdate,
+  PlayerUpdate,
+} from "@openfront/engine-api/game/GameUpdates";
+import { PlayerLike } from "@openfront/engine-api/game/ReadViews";
+import { PatternDecoder } from "@openfront/shared/PatternDecoder";
+import { createRandomName } from "@openfront/shared/SharedUtil";
+import { PlayerCosmetics } from "@openfront/shared/WireSchemas";
+import { Colord, colord } from "colord";
+import { base64url } from "jose";
+import { UserSettings } from "../UserSettings";
+import { PlayerState, PlayerStatic, PlayerTypeEnum } from "../render/types";
+import { themeProvider } from "../theme/ThemeProvider";
+import { type CosmeticOwner, visibleCosmetics } from "./CosmeticVisibility";
+import { playerStateFromUpdate, playerStaticFromUpdate } from "./EntityState";
+import { GameView } from "./GameView";
+import { resolvePlayerColors } from "./PlayerColors";
+import { applyStateUpdate } from "./PlayerStateUpdate";
+import { UnitView } from "./UnitView";
+
+const userSettings: UserSettings = new UserSettings();
+
+const FRIENDLY_TINT_TARGET = { r: 0, g: 255, b: 0, a: 1 };
+const EMBARGO_TINT_TARGET = { r: 255, g: 0, b: 0, a: 1 };
+const BORDER_TINT_RATIO = 0.35;
+
+export class PlayerView implements PlayerLike {
+  public anonymousName: string | null = null;
+  private decoder?: PatternDecoder;
+
+  /** Long-lived renderer state — mutated in place by applyUpdate(). */
+  public state: PlayerState;
+  /** Static header data — set once at construction, never mutated. */
+  public static: PlayerStatic;
+  /** The equipped cosmetics this client draws. */
+  public cosmetics!: PlayerCosmetics;
+
+  // Assigned via computeColors() in the constructor; re-assignable on theme change.
+  private _territoryColor!: Colord;
+  private _borderColor!: Colord;
+  private _railColor!: Colord;
+  // Update here to include structure light and dark colors
+  private _structureColors!: { light: Colord; dark: Colord };
+
+  // Pre-computed border color variants
+  private _borderColorNeutral!: Colord;
+  private _borderColorFriendly!: Colord;
+  private _borderColorEmbargo!: Colord;
+  private _borderColorDefendedNeutral!: { light: Colord; dark: Colord };
+  private _borderColorDefendedFriendly!: { light: Colord; dark: Colord };
+  private _borderColorDefendedEmbargo!: { light: Colord; dark: Colord };
+
+  constructor(
+    private game: GameView,
+    data: PlayerUpdate,
+    // Undefined until the worker's first name placement for this player.
+    public nameData: NameViewData | undefined,
+    /** Everything the player has equipped, before visibility settings. */
+    public readonly equippedCosmetics: PlayerCosmetics,
+  ) {
+    this.state = playerStateFromUpdate(data);
+    // Respect the client-side "Disable emojis" setting: when off, never surface
+    // emoji data to any renderer/overlay that reads this shared state (#4430).
+    if (!userSettings.emojis()) {
+      this.state.outgoingEmojis = [];
+    }
+    this.static = playerStaticFromUpdate(data);
+
+    // First emission always carries name + playerType (see playerStaticFromUpdate).
+    if (data.clientID === game.myClientID()) {
+      this.anonymousName = data.name!;
+    } else {
+      this.anonymousName = createRandomName(data.name!, data.playerType!);
+    }
+
+    this.refreshCosmetics();
+  }
+
+  /**
+   * Re-resolve which equipped cosmetics are drawn (see visibleCosmetics) and
+   * everything derived from them. Call when the cosmetics visibility settings
+   * or the local player's team change; the renderer must be refreshed after.
+   */
+  refreshCosmetics(): void {
+    this.cosmetics = visibleCosmetics(
+      this.equippedCosmetics,
+      this.game.cosmeticVisibility(),
+      this.cosmeticOwner(),
+    );
+    this.computeColors();
+
+    const pattern = this.cosmetics.pattern;
+    this.decoder =
+      pattern === undefined
+        ? undefined
+        : new PatternDecoder(pattern, base64url.decode);
+  }
+
+  private cosmeticOwner(): CosmeticOwner {
+    if (
+      this.static.clientID !== null &&
+      this.static.clientID === this.game.myClientID()
+    ) {
+      return "self";
+    }
+    const myTeam = this.game.myPlayer()?.team() ?? null;
+    return myTeam !== null && this.team() === myTeam ? "teammate" : "other";
+  }
+
+  /**
+   * Compute every theme-derived color (fill, border, structure, and the
+   * neutral/friendly/embargo border variants) from the active theme. Re-callable
+   * so a mid-game theme change — e.g. toggling colorblind mode — can refresh them.
+   */
+  private computeColors(): void {
+    const theme = themeProvider.current();
+
+    const pattern = this.cosmetics.pattern;
+    const colors = resolvePlayerColors(
+      theme,
+      theme.territoryColor(this),
+      this.cosmetics,
+      this.team(),
+      this.game.myClientID() === this.static.clientID,
+    );
+    this._territoryColor = colors.territory;
+    this._borderColor = colors.border;
+    this._structureColors = theme.structureColors(this._territoryColor);
+
+    // Rail color (only used for the local player's rails): white for
+    // visibility, flipped to black when the territory is too light for white
+    // to read against it. Patterns paint both colors, so average them.
+    const railBackdropBrightness = pattern
+      ? (this._territoryColor.brightness() + this._borderColor.brightness()) / 2
+      : this._territoryColor.brightness();
+    this._railColor =
+      railBackdropBrightness > 0.8
+        ? colord("rgb(0,0,0)")
+        : theme.focusedBorderColor();
+
+    const baseRgb = this._borderColor.toRgb();
+
+    this._borderColorNeutral = this._borderColor;
+
+    this._borderColorFriendly = colord({
+      r: Math.round(
+        baseRgb.r * (1 - BORDER_TINT_RATIO) +
+          FRIENDLY_TINT_TARGET.r * BORDER_TINT_RATIO,
+      ),
+      g: Math.round(
+        baseRgb.g * (1 - BORDER_TINT_RATIO) +
+          FRIENDLY_TINT_TARGET.g * BORDER_TINT_RATIO,
+      ),
+      b: Math.round(
+        baseRgb.b * (1 - BORDER_TINT_RATIO) +
+          FRIENDLY_TINT_TARGET.b * BORDER_TINT_RATIO,
+      ),
+      a: baseRgb.a,
+    });
+
+    this._borderColorEmbargo = colord({
+      r: Math.round(
+        baseRgb.r * (1 - BORDER_TINT_RATIO) +
+          EMBARGO_TINT_TARGET.r * BORDER_TINT_RATIO,
+      ),
+      g: Math.round(
+        baseRgb.g * (1 - BORDER_TINT_RATIO) +
+          EMBARGO_TINT_TARGET.g * BORDER_TINT_RATIO,
+      ),
+      b: Math.round(
+        baseRgb.b * (1 - BORDER_TINT_RATIO) +
+          EMBARGO_TINT_TARGET.b * BORDER_TINT_RATIO,
+      ),
+      a: baseRgb.a,
+    });
+
+    this._borderColorDefendedNeutral = theme.defendedBorderColors(
+      this._borderColorNeutral,
+    );
+    this._borderColorDefendedFriendly = theme.defendedBorderColors(
+      this._borderColorFriendly,
+    );
+    this._borderColorDefendedEmbargo = theme.defendedBorderColors(
+      this._borderColorEmbargo,
+    );
+  }
+
+  /** Recompute colors after the active theme changes (e.g. colorblind toggle). */
+  refreshColors(): void {
+    this.computeColors();
+  }
+
+  /**
+   * Update mutable state in place. Called by GameView.update() each tick the
+   * player appears in the PlayerUpdate stream.
+   */
+  applyUpdate(pu: PlayerUpdate): void {
+    applyStateUpdate(this.state, pu);
+    // applyStateUpdate refreshes outgoingEmojis every tick; re-apply the
+    // "Disable emojis" setting so live emojis stay hidden when it's off (#4430).
+    if (!userSettings.emojis()) {
+      this.state.outgoingEmojis = [];
+    }
+  }
+
+  /** Set the renderer-format embargoes (smallIDs). */
+  setEmbargoSmallIDs(smallIDs: number[]): void {
+    this.state.embargoes = smallIDs;
+  }
+
+  territoryColor(tile?: TileRef): Colord {
+    if (tile === undefined || this.decoder === undefined) {
+      return this._territoryColor;
+    }
+    const isPrimary = this.decoder.isPrimary(
+      this.game.x(tile),
+      this.game.y(tile),
+    );
+    return isPrimary ? this._territoryColor : this._borderColor;
+  }
+
+  structureColors(): { light: Colord; dark: Colord } {
+    return this._structureColors;
+  }
+
+  railColor(): Colord {
+    return this._railColor;
+  }
+
+  /**
+   * Border color for a tile:
+   * - Tints by neighbor relations (embargo → red, friendly → green, else neutral).
+   * - If defended, applies theme checkerboard to the tinted color.
+   */
+  borderColor(tile?: TileRef, isDefended: boolean = false): Colord {
+    if (tile === undefined) {
+      return this._borderColor;
+    }
+
+    const { hasEmbargo, hasFriendly } = this.borderRelationFlags(tile);
+
+    let baseColor: Colord;
+    let defendedColors: { light: Colord; dark: Colord };
+
+    if (hasEmbargo) {
+      baseColor = this._borderColorEmbargo;
+      defendedColors = this._borderColorDefendedEmbargo;
+    } else if (hasFriendly) {
+      baseColor = this._borderColorFriendly;
+      defendedColors = this._borderColorDefendedFriendly;
+    } else {
+      baseColor = this._borderColorNeutral;
+      defendedColors = this._borderColorDefendedNeutral;
+    }
+
+    if (!isDefended) {
+      return baseColor;
+    }
+
+    const x = this.game.x(tile);
+    const y = this.game.y(tile);
+    const lightTile =
+      (x % 2 === 0 && y % 2 === 0) || (y % 2 === 1 && x % 2 === 1);
+    return lightTile ? defendedColors.light : defendedColors.dark;
+  }
+
+  /**
+   * Border relation flags for a tile, used by both CPU and WebGL renderers.
+   */
+  borderRelationFlags(tile: TileRef): {
+    hasEmbargo: boolean;
+    hasFriendly: boolean;
+  } {
+    const mySmallID = this.smallID();
+    let hasEmbargo = false;
+    let hasFriendly = false;
+
+    for (const n of this.game.neighbors(tile)) {
+      if (!this.game.hasOwner(n)) {
+        continue;
+      }
+
+      const otherOwner = this.game.owner(n);
+      if (!otherOwner.isPlayer() || otherOwner.smallID() === mySmallID) {
+        continue;
+      }
+
+      if (this.hasEmbargo(otherOwner)) {
+        hasEmbargo = true;
+        break;
+      }
+
+      if (this.isFriendly(otherOwner) || otherOwner.isFriendly(this)) {
+        hasFriendly = true;
+      }
+    }
+    return { hasEmbargo, hasFriendly };
+  }
+
+  async actions(
+    tile?: TileRef,
+    units?: readonly PlayerBuildableUnitType[] | null,
+  ): Promise<PlayerActions> {
+    return this.game.worker.playerInteraction(
+      this.id(),
+      tile && this.game.x(tile),
+      tile && this.game.y(tile),
+      units,
+    );
+  }
+
+  async buildables(
+    tile?: TileRef,
+    units?: readonly PlayerBuildableUnitType[],
+  ): Promise<BuildableUnit[]> {
+    return this.game.worker.playerBuildables(
+      this.id(),
+      tile && this.game.x(tile),
+      tile && this.game.y(tile),
+      units,
+    );
+  }
+
+  async borderTiles(): Promise<PlayerBorderTiles> {
+    return this.game.worker.playerBorderTiles(this.id());
+  }
+
+  outgoingAttacks(): AttackUpdate[] {
+    return this.state.outgoingAttacks;
+  }
+
+  incomingAttacks(): AttackUpdate[] {
+    return this.state.incomingAttacks;
+  }
+
+  async attackClusteredPositions(
+    attackID?: string,
+  ): Promise<{ id: string; positions: Cell[] }[]> {
+    return this.game.worker.attackClusteredPositions(this.smallID(), attackID);
+  }
+
+  units(...types: UnitType[]): UnitView[] {
+    const owned = this.game.unitsOwnedBy(this.smallID());
+    if (types.length === 0) {
+      return owned.filter((unit) => this.game.isUnitVisible(unit));
+    }
+    return owned.filter(
+      (u) => types.includes(u.type()) && this.game.isUnitVisible(u),
+    );
+  }
+
+  /** Missiles launchable right now: each silo holds `level` tubes, minus
+   *  those still reloading. Caps how many nukes a bulk purchase can fire. */
+  readyMissileCount(): number {
+    return this.units(UnitType.MissileSilo).reduce(
+      (acc, silo) =>
+        silo.isUnderConstruction()
+          ? acc
+          : acc + Math.max(0, silo.level() - silo.missileTimerQueue().length),
+      0,
+    );
+  }
+
+  nameLocation(): NameViewData | undefined {
+    return this.nameData;
+  }
+
+  smallID(): number {
+    return this.state.smallID;
+  }
+
+  name(): string {
+    return this.anonymousName !== null && userSettings.anonymousNames()
+      ? this.anonymousName
+      : this.static.name;
+  }
+  displayName(): string {
+    return this.anonymousName !== null && userSettings.anonymousNames()
+      ? this.anonymousName
+      : this.static.displayName;
+  }
+  clanTag(): string | null {
+    return this.anonymousName !== null && userSettings.anonymousNames()
+      ? null
+      : this.static.clanTag;
+  }
+  clientID(): ClientID | null {
+    return this.static.clientID;
+  }
+  id(): PlayerID {
+    return this.static.id;
+  }
+  team(): Team | null {
+    return this.static.team;
+  }
+  type(): PlayerType {
+    // Map PlayerStatic's numeric enum back to engine string enum.
+    switch (this.static.playerType) {
+      case PlayerTypeEnum.Human:
+        return PlayerType.Human;
+      case PlayerTypeEnum.Bot:
+        return PlayerType.Bot;
+      case PlayerTypeEnum.Nation:
+        return PlayerType.Nation;
+      default:
+        return PlayerType.Bot;
+    }
+  }
+  isAlive(): boolean {
+    return this.state.isAlive;
+  }
+  killedBy(): string | null {
+    return this.state.killedBy;
+  }
+  deathPosition(): number | null {
+    return this.state.deathPosition;
+  }
+  isPlayer(): this is PlayerView {
+    return true;
+  }
+  numTilesOwned(): number {
+    return this.state.tilesOwned;
+  }
+  allies(): PlayerView[] {
+    return this.state.allies.map(
+      (a) => this.game.playerBySmallID(a) as PlayerView,
+    );
+  }
+  targets(): PlayerView[] {
+    return this.state.targets.map(
+      (id) => this.game.playerBySmallID(id) as PlayerView,
+    );
+  }
+  gold(): Gold {
+    // Engine Gold is bigint; renderer state stores number. Convert back at the
+    // accessor for game-code that still expects bigint semantics.
+    return BigInt(this.state.gold);
+  }
+
+  /** Cumulative ship-trade revenue (for gold-rate columns). */
+  tradeGold(): number {
+    return this.state.tradeGold;
+  }
+
+  /** Cumulative train revenue: own trains + external stops at own stations. */
+  trainGold(): number {
+    return this.state.trainGold;
+  }
+
+  /** Cumulative piracy revenue: captured-ship payouts. */
+  piracyGold(): number {
+    return this.state.piracyGold;
+  }
+
+  /** Cumulative gold received from all sources. */
+  goldEarned(): number {
+    return this.state.goldEarned;
+  }
+
+  oil(): number {
+    return this.state.oil;
+  }
+
+  gas(): number {
+    return this.state.gas;
+  }
+
+  uranium(): number {
+    return this.state.uranium;
+  }
+
+  troops(): number {
+    return this.state.troops;
+  }
+
+  totalUnitLevels(type: UnitType): number {
+    return this.units(type)
+      .filter((unit) => !unit.isUnderConstruction())
+      .map((unit) => unit.level())
+      .reduce((a, b) => a + b, 0);
+  }
+
+  isMe(): boolean {
+    return this.smallID() === this.game.myPlayer()?.smallID();
+  }
+
+  isLobbyCreator(): boolean {
+    return this.static.isLobbyCreator;
+  }
+
+  isAlliedWith(other: PlayerView): boolean {
+    return this.state.allies.some((n) => other.smallID() === n);
+  }
+
+  isOnSameTeam(other: PlayerView): boolean {
+    return this.static.team !== null && this.static.team === other.static.team;
+  }
+
+  isFriendly(other: PlayerView): boolean {
+    return this.isAlliedWith(other) || this.isOnSameTeam(other);
+  }
+
+  isRequestingAllianceWith(other: PlayerView) {
+    return this.state.outgoingAllianceRequests.some((id) => other.id() === id);
+  }
+
+  alliances(): AllianceView[] {
+    return this.state.alliances;
+  }
+
+  hasEmbargoAgainst(other: PlayerView): boolean {
+    return this.state.embargoes.includes(other.smallID());
+  }
+
+  hasEmbargo(other: PlayerView): boolean {
+    return this.hasEmbargoAgainst(other) || other.hasEmbargoAgainst(this);
+  }
+
+  profile(): Promise<PlayerProfile> {
+    return this.game.worker.playerProfile(this.smallID());
+  }
+
+  bestTransportShipSpawn(targetTile: TileRef): Promise<TileRef | false> {
+    return this.game.worker.transportShipSpawn(this.id(), targetTile);
+  }
+
+  transitiveTargets(): PlayerView[] {
+    const result: PlayerView[] = [];
+
+    // Add own targets
+    for (const id of this.state.targets) {
+      result.push(this.game.playerBySmallID(id) as PlayerView);
+    }
+
+    // Add allies' targets
+    for (const allyID of this.state.allies) {
+      const ally = this.game.playerBySmallID(allyID) as PlayerView;
+      for (const targetId of ally.state.targets) {
+        result.push(this.game.playerBySmallID(targetId) as PlayerView);
+      }
+    }
+
+    // Add teammates' targets
+    const myTeam = this.static.team;
+    if (myTeam !== null) {
+      for (const p of this.game.playerViews()) {
+        if (p !== this && p.static.team === myTeam) {
+          for (const targetId of p.state.targets) {
+            result.push(this.game.playerBySmallID(targetId) as PlayerView);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  hasTransitiveTarget(sid: number): boolean {
+    if (this.state.targets.includes(sid)) return true;
+
+    for (const allyID of this.state.allies) {
+      const ally = this.game.playerBySmallID(allyID) as PlayerView;
+      if (ally && ally.state.targets.includes(sid)) {
+        return true;
+      }
+    }
+
+    const myTeam = this.static.team;
+    if (myTeam !== null) {
+      for (const p of this.game.playerViews()) {
+        if (
+          p !== this &&
+          p.static.team === myTeam &&
+          p.state.targets.includes(sid)
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  isTraitor(): boolean {
+    return this.state.isTraitor;
+  }
+  getTraitorRemainingTicks(): number {
+    return this.state.traitorRemainingTicks;
+  }
+  inDoomsdayClock(): boolean {
+    return this.state.inDoomsdayClock;
+  }
+  isDecaying(): boolean {
+    return this.state.isDecaying;
+  }
+  doomsdayClockTicks(): number {
+    return this.inDoomsdayClock()
+      ? this.game.ticks() - this.state.markedDoomsdayClockTick
+      : 0;
+  }
+  betrayals(): number {
+    return this.state.betrayals;
+  }
+  outgoingEmojis(): EmojiMessage[] {
+    return this.state.outgoingEmojis;
+  }
+
+  tradeOffer() {
+    return this.state.tradeOffer;
+  }
+
+  hasSpawned(): boolean {
+    return this.state.hasSpawned;
+  }
+  isDisconnected(): boolean {
+    return this.state.isDisconnected;
+  }
+
+  lastDeleteUnitTick(): Tick {
+    return this.state.lastDeleteUnitTick;
+  }
+
+  deleteUnitCooldown(): number {
+    return (
+      Math.max(
+        0,
+        this.game.config().deleteUnitCooldown() -
+          (this.game.ticks() + 1 - this.lastDeleteUnitTick()),
+      ) / 10
+    );
+  }
+}

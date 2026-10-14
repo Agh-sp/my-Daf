@@ -1,0 +1,135 @@
+{
+  "categories": ["asia"],
+  "id": "EastAsia",
+  "map": {
+    "height": 1644,
+    "num_land_tiles": 879264,
+    "width": 1560
+  },
+  "map16x": {
+    "height": 411,
+    "num_land_tiles": 51649,
+    "width": 390
+  },
+  "map4x": {
+    "height": 822,
+    "num_land_tiles": 214937,
+    "width": 780
+  },
+  "multiplayer_frequency": 5,
+  "name": "East Asia",
+  "nations": [
+    {
+      "coordinates": [1157, 614],
+      "flag": "jp",
+      "name": "Hokkaido"
+    },
+    {
+      "coordinates": [1162, 154],
+      "flag": "Sakhalin",
+      "name": "Sakhalin"
+    },
+    {
+      "coordinates": [631, 1174],
+      "flag": "jp",
+      "name": "Shikoku"
+    },
+    {
+      "coordinates": [450, 1234],
+      "flag": "jp",
+      "name": "Kyushu"
+    },
+    {
+      "coordinates": [265, 1010],
+      "flag": "kr",
+      "name": "South Korea"
+    },
+    {
+      "coordinates": [160, 841],
+      "flag": "kp",
+      "name": "North Korea"
+    },
+    {
+      "coordinates": [979, 1073],
+      "flag": "jp",
+      "name": "Tokyo"
+    },
+    {
+      "coordinates": [275, 1614],
+      "flag": "jp",
+      "name": "Okinawa"
+    },
+    {
+      "coordinates": [740, 480],
+      "flag": "ru",
+      "name": "Primorsky Krai"
+    },
+    {
+      "coordinates": [25, 80],
+      "flag": "cn",
+      "name": "Inner Mongolia"
+    },
+    {
+      "coordinates": [334, 24],
+      "flag": "ru",
+      "name": "Amur"
+    },
+    {
+      "coordinates": [1443, 512],
+      "flag": "Sakhalin",
+      "name": "Kuril Islands"
+    },
+    {
+      "coordinates": [69, 581],
+      "flag": "cn",
+      "name": "Jilin"
+    },
+    {
+      "coordinates": [932, 89],
+      "flag": "ru",
+      "name": "Khabarovsk Krai"
+    },
+    {
+      "coordinates": [582, 1098],
+      "flag": "jp",
+      "name": "Chugoku"
+    },
+    {
+      "coordinates": [773, 1102],
+      "flag": "jp",
+      "name": "Kyoto"
+    },
+    {
+      "coordinates": [1037, 835],
+      "flag": "jp",
+      "name": "Tohoku"
+    },
+    {
+      "coordinates": [328, 478],
+      "flag": "cn",
+      "name": "Heilongjiang"
+    },
+    {
+      "coordinates": [868, 1052],
+      "flag": "jp",
+      "name": "Chubu"
+    },
+    {
+      "coordinates": [991, 987],
+      "flag": "jp",
+      "name": "Kanto"
+    },
+    {
+      "coordinates": [191, 1201],
+      "flag": "kr",
+      "name": "Jeju Island"
+    },
+    {
+      "coordinates": [581, 224],
+      "flag": "ru",
+      "name": "Jewish Autonomous Oblast"
+    }
+  ],
+  "themes": ["asia"],
+  "translation_key": "map.eastasia"
+}

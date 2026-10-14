@@ -1,0 +1,100 @@
+{
+  "categories": ["europe"],
+  "id": "Italia",
+  "map": {
+    "height": 1272,
+    "num_land_tiles": 775663,
+    "width": 1360
+  },
+  "map16x": {
+    "height": 318,
+    "num_land_tiles": 46701,
+    "width": 340
+  },
+  "map4x": {
+    "height": 636,
+    "num_land_tiles": 191249,
+    "width": 680
+  },
+  "multiplayer_frequency": 6,
+  "name": "Italia",
+  "nations": [
+    {
+      "coordinates": [1038, 993],
+      "flag": "TwoSicilies",
+      "name": "Kingdom of the Two Sicilies"
+    },
+    {
+      "coordinates": [370, 1137],
+      "flag": "tn",
+      "name": "Beylik of Tunis"
+    },
+    {
+      "coordinates": [785, 578],
+      "flag": "PapalStates",
+      "name": "Papal States"
+    },
+    {
+      "coordinates": [625, 534],
+      "flag": "Grand Duchy of Tuscany",
+      "name": "Grand Duchy of Tuscany"
+    },
+    {
+      "coordinates": [595, 190],
+      "flag": "venice",
+      "name": "Republic of Venice"
+    },
+    {
+      "coordinates": [469, 386],
+      "flag": "Duchy of Modena and Reggio",
+      "name": "Duchy of Modena"
+    },
+    {
+      "coordinates": [391, 254],
+      "flag": "Duchy of Parma",
+      "name": "Duchy of Parma"
+    },
+    {
+      "coordinates": [361, 68],
+      "flag": "ch",
+      "name": "Switzerland"
+    },
+    {
+      "coordinates": [278, 774],
+      "flag": "Kingdom of Sardinia",
+      "name": "Kingdom of Sardinia"
+    },
+    {
+      "coordinates": [29, 266],
+      "flag": "fr",
+      "name": "France"
+    },
+    {
+      "coordinates": [747, 39],
+      "flag": "Habsburg Austria",
+      "name": "Austrian Empire"
+    },
+    {
+      "coordinates": [870, 1240],
+      "flag": "gb",
+      "name": "Colony of Malta"
+    },
+    {
+      "coordinates": [1255, 31],
+      "flag": "Kingdom of Hungary",
+      "name": "Kingdom of Hungary"
+    },
+    {
+      "coordinates": [630, 350],
+      "flag": "sm",
+      "name": "San Marino"
+    },
+    {
+      "coordinates": [1238, 349],
+      "flag": "tr",
+      "name": "Ottoman Empire"
+    }
+  ],
+  "themes": ["europe"],
+  "translation_key": "map.italia"
+}
