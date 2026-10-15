@@ -427,7 +427,7 @@ export class AdminPanel extends LitElement {
     this.error = null;
     try {
       const { base, workerCount } = await this.apiBase();
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         Array.from({ length: workerCount }, async (_, workerId) => {
           const response = await fetch(
             `${base}/w${workerId}/api/admin/overview`,
@@ -449,11 +449,34 @@ export class AdminPanel extends LitElement {
           return (await response.json()) as AdminWorkerOverview;
         }),
       );
-      this.overviews = results;
+      if (!sessionStorage.getItem(SESSION_KEY)) {
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      const availableWorkerIds = results.flatMap((result, workerId) =>
+        result.status === "fulfilled" ? [workerId] : [],
+      );
+      const workerFailures = results.flatMap((result) =>
+        result.status === "rejected"
+          ? [
+              result.reason instanceof Error
+                ? result.reason.message
+                : translateText("admin_panel.load_failed"),
+            ]
+          : [],
+      );
+      if (availableWorkerIds.length === 0) {
+        throw new Error(
+          workerFailures[0] ?? translateText("admin_panel.load_failed"),
+        );
+      }
+      this.overviews = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      this.error = workerFailures.length > 0 ? workerFailures.join(" ") : null;
       const [reports, logs, accountKeys, localData] = await Promise.all([
-        this.fetchReports(base, workerCount, token),
-        this.fetchLogs(base, workerCount, token),
-        this.fetchBans(base, workerCount, token),
+        this.fetchReports(base, availableWorkerIds, token),
+        this.fetchLogs(base, availableWorkerIds, token),
+        this.fetchBans(base, availableWorkerIds, token),
         this.fetchLocalAdminData(base, token),
       ]);
       this.reports = reports;
@@ -487,11 +510,11 @@ export class AdminPanel extends LitElement {
 
   private async fetchReports(
     base: string,
-    workerCount: number,
+    workerIds: number[],
     token: string,
   ): Promise<AdminChatReport[]> {
     const perWorker = await Promise.all(
-      Array.from({ length: workerCount }, async (_, workerId) => {
+      workerIds.map(async (workerId) => {
         const response = await fetch(`${base}/w${workerId}/api/admin/reports`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -529,11 +552,11 @@ export class AdminPanel extends LitElement {
 
   private async fetchLogs(
     base: string,
-    workerCount: number,
+    workerIds: number[],
     token: string,
   ): Promise<AdminLog[]> {
     const perWorker = await Promise.all(
-      Array.from({ length: workerCount }, async (_, workerId) => {
+      workerIds.map(async (workerId) => {
         const response = await fetch(
           `${base}/w${workerId}/api/admin/logs?limit=200`,
           { headers: { Authorization: `Bearer ${token}` } },
@@ -603,11 +626,11 @@ export class AdminPanel extends LitElement {
 
   private async fetchBans(
     base: string,
-    workerCount: number,
+    workerIds: number[],
     token: string,
   ): Promise<string[]> {
     const perWorker = await Promise.all(
-      Array.from({ length: workerCount }, async (_, workerId) => {
+      workerIds.map(async (workerId) => {
         const response = await fetch(`${base}/w${workerId}/api/admin/bans`, {
           headers: { Authorization: `Bearer ${token}` },
         });
