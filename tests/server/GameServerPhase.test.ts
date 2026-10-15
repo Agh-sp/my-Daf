@@ -1,6 +1,8 @@
 import { CloseCode, CloseReason } from "@openfront/shared/CloseCodes";
+import { PUBLIC_LOBBY_START_DELAY_MS } from "@openfront/shared/WireSchemas";
 import { createGameWireContext } from "@openfront/shared/ZbinWire";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GameType } from "@openfront/engine-api/game/GameTypes";
 import { GameManager } from "../../src/server/GameManager";
 import { GamePhase } from "../../src/server/GameServer";
 import {
@@ -57,6 +59,30 @@ describe("GameServer.phase()", () => {
     expect(game.phase()).toBe(GamePhase.Lobby);
 
     vi.advanceTimersByTime(10_001);
+    expect(game.phase()).toBe(GamePhase.Active);
+  });
+
+  it("gives the first player a full join window if a public lobby was empty", () => {
+    const game = makeGame({
+      startsAt: T0 + 10_000,
+      publicGameType: "ffa",
+      config: { gameType: GameType.Public, maxPlayers: 2 },
+    });
+
+    vi.advanceTimersByTime(10_001);
+    expect(game.phase()).toBe(GamePhase.Active);
+
+    game.joinClient(makeClient());
+    expect(game.gameInfo().startsAt).toBe(
+      Date.now() + PUBLIC_LOBBY_START_DELAY_MS,
+    );
+    expect(game.phase()).toBe(GamePhase.Lobby);
+
+    vi.advanceTimersByTime(PUBLIC_LOBBY_START_DELAY_MS - 1);
+    game.joinClient(makeClient());
+    expect(game.phase()).toBe(GamePhase.Lobby);
+
+    vi.advanceTimersByTime(1);
     expect(game.phase()).toBe(GamePhase.Active);
   });
 
