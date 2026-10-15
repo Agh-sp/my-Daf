@@ -93,7 +93,7 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.login_subtitle":
     "برای مدیریت کاربران آنلاین و مشاهدهٔ وضعیت سرورها وارد شوید.",
   "admin_panel.login_title": "ورود مدیر",
-  "admin_panel.memory_rss": "حافظهٔ سرور",
+  "admin_panel.memory_rss": "RAM مصرف‌شده / کل سرور",
   "admin_panel.maintenance": "توقف بازی‌ها برای تعمیرات",
   "admin_panel.maintenance_enabled":
     "حالت تعمیرات فعال است؛ بازی‌های جاری متوقف شده‌اند.",
@@ -112,7 +112,10 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.no_players": "کاربر آنلاینی پیدا نشد.",
   "admin_panel.navigation": "مدیریت",
   "admin_panel.online_user_count": "{count} کاربر آنلاین",
-  "admin_panel.online_users": "کاربران آنلاین",
+  "admin_panel.online_users": "بازیکنان متصل به بازی",
+  "admin_panel.online_players_scope":
+    "فقط اتصال‌های فعال به بازی شمرده می‌شوند؛ بازدیدکنندگان سایت و لابی‌های خالی شمرده نمی‌شوند.",
+  "admin_panel.system_memory_unavailable": "اطلاعات حافظهٔ میزبان در دسترس نیست.",
   "admin_panel.overview": "نمای کلی",
   "admin_panel.player": "بازیکن",
   "admin_panel.player_not_found": "بازیکن دیگر آنلاین نیست.",
@@ -200,6 +203,7 @@ type AdminWorkerOverview = {
   uptimeSeconds: number;
   loadAverage: number[];
   memory: { rss: number; heapUsed: number; heapTotal: number };
+  systemMemory?: { totalBytes: number; freeBytes: number };
   maintenanceMode: boolean;
   games: AdminGame[];
 };
@@ -863,6 +867,9 @@ export class AdminPanel extends LitElement {
 
   private formatBytes(bytes: number): string {
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    if (bytes >= 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    }
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
@@ -2221,10 +2228,12 @@ export class AdminPanel extends LitElement {
       (sum, overview) => sum + overview.games.length,
       0,
     );
-    const totalMemory = this.overviews.reduce(
-      (sum, overview) => sum + overview.memory.rss,
-      0,
-    );
+    const systemMemory = this.overviews.find(
+      (overview) => overview.systemMemory !== undefined,
+    )?.systemMemory;
+    const systemMemoryLabel = systemMemory
+      ? `${this.formatBytes(Math.max(0, systemMemory.totalBytes - systemMemory.freeBytes))} / ${this.formatBytes(systemMemory.totalBytes)}`
+      : translateText("admin_panel.system_memory_unavailable");
     const content =
       this.tab === "users"
         ? this.renderUsers()
@@ -2256,7 +2265,7 @@ export class AdminPanel extends LitElement {
                       )}
                       ${this.statCard(
                         translateText("admin_panel.memory_rss"),
-                        this.formatBytes(totalMemory),
+                        systemMemoryLabel,
                         "▤",
                         "text-sky-300",
                       )}
@@ -2267,6 +2276,9 @@ export class AdminPanel extends LitElement {
                         "text-amber-300",
                       )}
                     </div>
+                    <p class="mt-3 text-xs text-slate-500">
+                      ${translateText("admin_panel.online_players_scope")}
+                    </p>
                     <section
                       class="mt-5 rounded-xl border border-white/[0.07] bg-[#111620] p-5"
                     >

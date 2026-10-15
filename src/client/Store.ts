@@ -26,7 +26,6 @@ import { alignPurchaseRows } from "./components/PurchaseButton";
 import "./components/TribesPanel";
 import { modalHeader } from "./components/ui/ModalHeader";
 import {
-  fetchCosmetics,
   findPackItem,
   groupCosmeticVariants,
   ownedPackItems,
@@ -112,20 +111,8 @@ export class StoreModal extends BaseModal {
   private readonly pages = new ProgressiveList(this);
 
   protected modalConfig() {
-    if (this.affiliateCode) {
-      // Affiliate mode: hide tabs, show only items associated with the code.
-      return {};
-    }
     return {
-      tabs: [
-        { key: "packs", label: "بسته‌ها" },
-        { key: "subscriptions", label: "اشتراک‌ها" },
-        { key: "bundles", label: "مجموعه‌ها" },
-        { key: "cosmetics", label: "ظاهرها" },
-        { key: "effects", label: "جلوه‌ها" },
-        { key: "tribes", label: "قبیله‌ها" },
-        { key: "products", label: "محصولات" },
-      ],
+      tabs: [{ key: "products", label: "محصولات" }],
     };
   }
 
@@ -372,14 +359,6 @@ export class StoreModal extends BaseModal {
         دریافت محصولات از سرور ناموفق بود.
       </section>`;
     }
-    if (this.localProducts.length === 0) {
-      return html`<section
-        dir="rtl"
-        class="p-8 text-center text-sm text-white/45"
-      >
-        هنوز محصولی برای فروش ثبت نشده است.
-      </section>`;
-    }
     const products = this.localProducts.filter(
       (product) =>
         !this.selectedLocalCategory ||
@@ -409,7 +388,13 @@ export class StoreModal extends BaseModal {
           </label>`
         : ""}
       ${products.length === 0
-        ? html`<p class="p-8 text-center text-sm text-white/45">${translateText("store.local_products_empty_category")}</p>`
+            ? html`<p class="p-8 text-center text-sm text-white/45">
+                ${translateText(
+                  this.selectedLocalCategory
+                    ? "store.local_products_empty_category"
+                    : "store.local_products_empty",
+                )}
+              </p>`
         : html`<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       ${products.map(
         (product) => html`<article
@@ -726,31 +711,8 @@ export class StoreModal extends BaseModal {
       : ""}`;
   }
 
-  protected renderBody(key: string): TemplateResult {
-    if (this.affiliateCode) return this.renderAffiliateGrid();
-    switch (key) {
-      case "packs":
-        return this.renderPackGrid();
-      case "subscriptions":
-        return this.renderSubscriptionGrid();
-      case "bundles":
-        return this.renderBundleGrid();
-      case "cosmetics":
-        return this.renderCosmeticsPanel();
-      case "effects":
-        return this.renderEffectGrid();
-      case "tribes":
-        return this.renderTribeGrid();
-      case "products":
-        return this.renderLocalProducts();
-    }
-    return html`<section
-      data-store-empty
-      dir="rtl"
-      class="grid min-h-64 place-items-center px-6 py-16 text-center text-lg font-bold text-white/60"
-    >
-      خالی
-    </section>`;
+  protected renderBody(_key: string): TemplateResult {
+    return this.renderLocalProducts();
   }
 
   private renderTribeGrid(): TemplateResult {
@@ -768,11 +730,7 @@ export class StoreModal extends BaseModal {
     });
   }
 
-  protected async onOpen(args?: Record<string, unknown>) {
-    this.affiliateCode =
-      typeof args?.affiliateCode === "string" ? args.affiliateCode : null;
-    this.requestedItem =
-      typeof args?.item === "string" ? args.item : null;
+  protected async onOpen(_args?: Record<string, unknown>) {
     this.pages.reset();
     this.selectVisible(this.groupsForTab(this.activeTab));
     await this.refresh();
@@ -797,24 +755,22 @@ export class StoreModal extends BaseModal {
 
   public async refresh() {
     this.localProductsError = false;
-    const [cosmetics, productsResponse] = await Promise.allSettled([
-      fetchCosmetics(),
-      fetch(localAccountApiUrl("/products"), {
+    let productsResponse: Response;
+    try {
+      productsResponse = await fetch(localAccountApiUrl("/products"), {
         signal: AbortSignal.timeout(10_000),
-      }),
-    ]);
-    if (cosmetics.status === "fulfilled") {
-      this.cosmetics = cosmetics.value;
-      this.selectVisible(this.groupsForTab(this.activeTab));
-    }
-    if (productsResponse.status === "rejected") {
+      });
+    } catch {
       this.localProductsError = true;
-    } else if (!productsResponse.value.ok) {
+      this.requestUpdate();
+      return;
+    }
+    if (!productsResponse.ok) {
       this.localProductsError = true;
     } else {
       try {
         const parsed = LocalProductsResponseSchema.safeParse(
-          await productsResponse.value.json(),
+          await productsResponse.json(),
         );
         if (!parsed.success) throw new Error("Invalid local product catalog");
         this.localProducts = parsed.data.products;

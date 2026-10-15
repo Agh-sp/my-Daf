@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createHmac, scryptSync } from "crypto";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
@@ -6,6 +7,7 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerAdminPanelRoutes } from "../../src/server/AdminPanelRoutes";
+import { registerLocalAccountRoutes } from "../../src/server/LocalAccountRoutes";
 import { LocalDataStore } from "../../src/server/LocalDataStore";
 
 const PASSWORD = "test-panel-password";
@@ -23,6 +25,8 @@ describe("admin panel login and sessions", () => {
     passwordHash: process.env.ADMIN_PANEL_PASSWORD_HASH,
     sessionSecret: process.env.ADMIN_PANEL_SESSION_SECRET,
     numWorkers: process.env.NUM_WORKERS,
+    localAuthSecret: process.env.LOCAL_AUTH_SECRET,
+    domain: process.env.DOMAIN,
   };
   let maintenanceMode = false;
 
@@ -32,6 +36,9 @@ describe("admin panel login and sessions", () => {
     process.env.ADMIN_PANEL_PASSWORD_HASH = `scrypt$${salt}$${scryptSync(PASSWORD, Buffer.from(salt, "hex"), 32).toString("hex")}`;
     process.env.ADMIN_PANEL_SESSION_SECRET = SESSION_SECRET;
     process.env.NUM_WORKERS = "1";
+    process.env.LOCAL_AUTH_SECRET =
+      "test-local-account-auth-secret-that-is-long-enough";
+    process.env.DOMAIN = "localhost";
     maintenanceMode = false;
     reports = [];
     dataDirectory = mkdtempSync(path.join(tmpdir(), "openfront-admin-data-"));
@@ -54,6 +61,7 @@ describe("admin panel login and sessions", () => {
       workerId: 0,
       localDataStore: store,
     });
+    registerLocalAccountRoutes({ app, store, workerId: 0 });
     server = createServer(app);
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
@@ -75,6 +83,8 @@ describe("admin panel login and sessions", () => {
     restoreEnv("ADMIN_PANEL_PASSWORD_HASH", originalEnv.passwordHash);
     restoreEnv("ADMIN_PANEL_SESSION_SECRET", originalEnv.sessionSecret);
     restoreEnv("NUM_WORKERS", originalEnv.numWorkers);
+    restoreEnv("LOCAL_AUTH_SECRET", originalEnv.localAuthSecret);
+    restoreEnv("DOMAIN", originalEnv.domain);
   });
 
   it("issues a server-signed session for configured credentials", async () => {
@@ -161,6 +171,62 @@ describe("admin panel login and sessions", () => {
     expect(maintenance.status).toBe(200);
     expect(await maintenance.json()).toEqual({ maintenanceMode: true });
     expect(maintenanceMode).toBe(true);
+  });
+
+  it("reports host memory separately from Node.js process memory", async () => {
+    const response = await fetch(`${baseUrl}/api/admin/overview`, {
+      headers: { Authorization: `Bearer ${testAdminToken()}` },
+    });
+    expect(response.status).toBe(200);
+    const overview = (await response.json()) as {
+      memory: { rss: number };
+      systemMemory: { totalBytes: number; freeBytes: number };
+    };
+    expect(overview.memory.rss).toBeGreaterThan(0);
+    expect(overview.systemMemory.totalBytes).toBeGreaterThan(0);
+    expect(overview.systemMemory.freeBytes).toBeGreaterThanOrEqual(0);
+    expect(overview.systemMemory.freeBytes).toBeLessThanOrEqual(
+      overview.systemMemory.totalBytes,
+    );
+  });
+
+  it("lets an account created in the admin panel sign in through the local login route", async () => {
+    const headers = {
+      Authorization: `Bearer ${testAdminToken()}`,
+      "Content-Type": "application/json",
+    };
+    const create = await fetch(`${baseUrl}/api/admin/accounts`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        username: "A13",
+        password: "local-password-123",
+      }),
+    });
+    expect(create.status).toBe(201);
+
+    const login = await fetch(`${baseUrl}/api/local/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "a13",
+        password: "local-password-123",
+      }),
+    });
+    expect(login.status).toBe(200);
+    const { token, user } = (await login.json()) as {
+      token: string;
+      user: { player: { username: string } };
+    };
+    expect(user.player.username).toBe("A13");
+
+    const me = await fetch(`${baseUrl}/api/local/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(me.status).toBe(200);
+    expect(await me.json()).toMatchObject({
+      player: { username: "A13" },
+    });
   });
 
   it("manages local accounts without exposing password hashes", async () => {

@@ -7,7 +7,9 @@ worker.
 ## Available controls
 
 - **Overview and Games** show live worker health, running games and connected
-  players.
+  players. The online count includes active game connections only, not website
+  visitors or empty lobbies. The memory card shows host RAM in use / total, not
+  the sum of each Node.js worker's process memory.
 - **Reports** combines global-chat reports with player reports filed during
   active games. Reports are written to SQLite as they are submitted and remain
   available after a worker restart.
@@ -19,9 +21,12 @@ worker.
 - **Products** manages a local product catalog with name, description, integer
   price, currency, an optional HTTPS payment link, visibility, and an optional
   PNG/JPEG/WebP image (up to 3 MB). Administrators can create, rename, and
-  delete product categories. Players see active products, category filters, and
-  payment links in the Store's Products tab. The link opens an external payment
-  page; this catalog does not verify payment or automatically fulfill purchases.
+  delete product categories. The Store displays only this server-managed
+  catalog; legacy cosmetics, subscription and bundle tabs are not shown there.
+  Players see active products, category filters, and payment links. Saved
+  categories remain visible even when no active products are available. The
+  link opens an external payment page; this catalog does not verify payment or
+  automatically fulfill purchases.
 - **Inventory** shows products manually granted to the signed-in local account.
   These are delivered products, not equipable game cosmetics.
 - **Export / backup** downloads a JSON snapshot of local accounts, password
@@ -62,9 +67,9 @@ sign in in the site's account modal using their username and password.
 
 The local username/password accounts, product catalog, and manually granted
 inventory described above are managed by this game server and do not depend on
-the external account API. Other existing integrations are separate:
-OAuth/social sign-in, cosmetics, and monetization/payment flows may still
-contact the closed-source API service described in [Architecture](./Architecture.md).
+the external account API. The Store reads only its local product catalog.
+OAuth/social sign-in and other game integrations may still contact the
+closed-source API service described in [Architecture](./Architecture.md).
 Local products are only a catalog with external payment links; automatic
 payment verification and fulfillment require a supported payment provider and
 a verified server-side webhook, which this panel does not currently implement.

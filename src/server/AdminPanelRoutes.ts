@@ -168,6 +168,10 @@ export function registerAdminPanelRoutes({
       uptimeSeconds: process.uptime(),
       loadAverage: os.loadavg(),
       memory: process.memoryUsage(),
+      systemMemory: {
+        totalBytes: os.totalmem(),
+        freeBytes: os.freemem(),
+      },
       maintenanceMode: gm.isMaintenanceMode(),
       games: gm.adminOverview(),
     });
