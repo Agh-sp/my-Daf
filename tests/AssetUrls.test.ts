@@ -1,8 +1,46 @@
 import { buildAssetUrl } from "@openfront/shared/AssetPaths";
-import { rewriteAssetsForCdn } from "@openfront/shared/AssetUrls";
-import { describe, expect, test } from "vitest";
+import {
+  getAssetManifest,
+  rewriteAssetsForCdn,
+} from "@openfront/shared/AssetUrls";
+import { afterEach, describe, expect, test, vi } from "vitest";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("AssetUrls", () => {
+  test("falls back to the bundled manifest when runtime config has an empty one", () => {
+    const bundledManifest = {
+      "images/RandomMap.webp":
+        "/_assets/images/RandomMap.12d9a3c390ed.webp",
+    };
+    vi.stubGlobal("__ASSET_MANIFEST__", bundledManifest);
+    vi.stubGlobal("window", {
+      BOOTSTRAP_CONFIG: { assetManifest: {} },
+    });
+
+    expect(getAssetManifest()).toEqual(bundledManifest);
+    expect(
+      buildAssetUrl("images/RandomMap.webp", getAssetManifest()),
+    ).toBe("/_assets/images/RandomMap.12d9a3c390ed.webp");
+  });
+
+  test("prefers a populated runtime manifest over the bundled manifest", () => {
+    const bundledManifest = {
+      "images/RandomMap.webp": "/_assets/images/RandomMap.old.webp",
+    };
+    const runtimeManifest = {
+      "images/RandomMap.webp": "/_assets/images/RandomMap.current.webp",
+    };
+    vi.stubGlobal("__ASSET_MANIFEST__", bundledManifest);
+    vi.stubGlobal("window", {
+      BOOTSTRAP_CONFIG: { assetManifest: runtimeManifest },
+    });
+
+    expect(getAssetManifest()).toEqual(runtimeManifest);
+  });
+
   test("returns hashed URLs for direct asset matches", () => {
     expect(
       buildAssetUrl("images/Favicon.svg", {

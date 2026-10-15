@@ -12,11 +12,12 @@ declare global {
 }
 
 export function getAssetManifest(): AssetManifest {
-  if (
-    typeof window !== "undefined" &&
-    window.BOOTSTRAP_CONFIG?.assetManifest !== undefined
-  ) {
-    return window.BOOTSTRAP_CONFIG.assetManifest;
+  const runtimeManifest =
+    typeof window !== "undefined"
+      ? window.BOOTSTRAP_CONFIG?.assetManifest
+      : undefined;
+  if (runtimeManifest && Object.keys(runtimeManifest).length > 0) {
+    return runtimeManifest;
   }
   return globalThis.__ASSET_MANIFEST__ ?? {};
 }
