@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="fa" class="h-full preload" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title data-i18n="main.title">دفاع خاورمیانه</title>
+    <link rel="manifest" href="<%- manifestHref %>" />
+    <link rel="icon" type="image/jpeg" href="<%- faviconHref %>" />
+
+    <!-- Preload styles -->
+    <style>
+      html {
+        color-scheme: dark;
+      }
+
+      html.preload {
+        visibility: visible !important;
+        opacity: 1 !important;
+        background-color: #111827 !important;
+      }
+
+      html.preload body {
+        visibility: hidden;
+        opacity: 0;
+      }
+
+      .preload {
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.5s ease-out;
+      }
+
+      /* iOS safe area support */
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+      }
+
+      /* Ensure full viewport height on iOS; body grows with content so the
+         document scrolls (see styles.css) */
+      html {
+        height: 100%;
+        height: -webkit-fill-available;
+      }
+      body {
+        min-height: 100%;
+        min-height: -webkit-fill-available;
+      }
+
+      /* Disable iOS double-tap "smart zoom" on the page; the game has its
+         own map zoom. Panning/scrolling stays allowed. See issue #4609. */
+      html,
+      body {
+        touch-action: manipulation;
+      }
+    </style>
+
+    <!-- SEO -->
+    <link rel="canonical" href="https://openfront.io/" />
+    <meta
+      name="description"
+      content="Conquer the world in this multiplayer battle royale! Expand your nation, eliminate opponents, and dominate the map in this fast-paced IO game."
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:url" content="https://openfront.io/" />
+    <meta property="og:title" content="دفاع خاورمیانه" />
+    <meta
+      property="og:description"
+      content="دفاع خاورمیانه؛ یک بازی راهبردی برای ساخت کشور، گسترش قلمرو و رقابت در نقشه."
+    />
+    <meta property="og:image" content="<%- gameplayScreenshotUrl %>" />
+    <meta property="og:type" content="game" />
+
+    <!--
+      Injected from Server env.
+
+      Every per-server value (cluster, instanceLetter, instanceId, serverHost,
+      siteHost) is emitted through a guard so the whole line — indentation and
+      trailing comma included — disappears when the renderer does not supply
+      it. That is what lets one page be rendered per VERSION rather than per
+      server and uploaded to the CDN (docs/MultiServer.md, "Publish pipeline
+      (v2)"); a game server supplies them all and gets exactly the page it
+      always served.
+
+      Never add a placeholder the Steam shell does not supply: openfront-desktop
+      renders this same template itself and a missing local is a ReferenceError,
+      i.e. a blank window. Guarding an existing one is safe — the shell supplies
+      a value and the line still emits.
+    -->
+    <script>
+      window.BOOTSTRAP_CONFIG = {
+        gitCommit: <%- gitCommit %>,
+        assetManifest: <%- assetManifest %>,
+        cdnBase: <%- cdnBase %>,
+        gameEnv: <%- gameEnv %>,<%- typeof cluster !== "undefined" && cluster ? "\n        cluster: " + cluster + "," : "" %><%- typeof instanceLetter !== "undefined" && instanceLetter ? "\n        instanceLetter: " + instanceLetter + "," : "" %>
+        jwtAudience: <%- jwtAudience %>,<%- typeof stripePublishableKey !== "undefined" && stripePublishableKey ? "\n        stripePublishableKey: " + stripePublishableKey + "," : "" %><%- typeof faroCollectorUrl !== "undefined" && faroCollectorUrl ? "\n        faroCollectorUrl: " + faroCollectorUrl + "," : "" %><%- typeof instanceId !== "undefined" && instanceId ? "\n        instanceId: " + instanceId + "," : "" %><%- typeof serverHost !== "undefined" && serverHost ? "\n        serverHost: " + serverHost + "," : "" %><%- typeof siteHost !== "undefined" && siteHost ? "\n        siteHost: " + siteHost + "," : "" %>
+      };
+      // Set here rather than from the bundle so the first paint already has the
+      // desktop layout. The shell's preload defines openfrontDesktop before
+      // any page script runs. ?desktop-layout previews it outside prod.
+      if (
+        window.openfrontDesktop ||
+        (window.BOOTSTRAP_CONFIG.gameEnv !== "prod" &&
+          new URLSearchParams(location.search).has("desktop-layout"))
+      ) {
+        document.documentElement.classList.add("desktop-shell");
+      }
+      document.documentElement.style.setProperty(
+        "--background-image-url",
+        `url("<%- backgroundImageUrl %>")`,
+      );
+    </script>
+
+    <!-- CrazyGames SDK -->
+    <script
+      src="https://sdk.crazygames.com/crazygames-sdk-v3.js"
+      async
+    ></script>
+
+    <script type="module" crossorigin src="<%- locals.cdnBaseRaw || "" %>/assets/index-6j9FYAGO.js"></script>
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/rolldown-runtime-BpQH8Ho1.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/vendor-DPAo4oW-.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/Platform-CHHnD-iM.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/decorate-DDFJEDDP.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/preload-helper-tkFyO0yo.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/CosmeticSchemas-DRLyea1I.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/DesktopShell-Cy7M529l.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/UserSettings-BhVaDNmN.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/CrazyGamesSDK-CbSm7Wb8.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/InGameModal-Dg_yQR8o.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/Api-BUc1dCNJ.js">
+    <link rel="modulepreload" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/AssetUrls-BCuYgOzJ.js">
+    <link rel="stylesheet" crossorigin href="<%- locals.cdnBaseRaw || "" %>/assets/index-Y9vjPesq.css">
+  </head>
+
+  <body
+    class="select-none font-sans min-h-screen bg-neutral-800 transition-opacity duration-300 ease-in-out flex flex-row flex-wrap content-start"
+  >
+    <div id="hex-grid" class="fixed inset-0 -z-50 pointer-events-none">
+      <div
+        id="background-layer"
+        class="absolute inset-x-0 top-0 -bottom-[4cm] bg-cover opacity-30 [filter:brightness(1.0)] dark:[filter:sepia(0.3)_saturate(1.15)_brightness(0.9)]"
+        style="
+          background-image: var(--background-image-url);
+          background-position: center top;
+        "
+      ></div>
+    </div>
+
+    <!-- LEFT SIDEBAR MENU -->
+
+    <div
+      id="mobile-menu-backdrop"
+      class="lg:hidden! in-[.in-game]:hidden hidden pointer-events-none [&.open]:block [&.open]:pointer-events-auto [&.open]:fixed [&.open]:inset-0 [&.open]:bg-black/60 [&.open]:z-[40000] transition-opacity"
+      role="presentation"
+      aria-hidden="true"
+    ></div>
+
+    <mobile-nav-bar
+      id="sidebar-menu"
+      class="peer [.in-game_&]:hidden z-[40001] fixed left-0 top-0 h-full flex flex-col justify-start overflow-visible bg-black/70 backdrop-blur-xl border-r border-white/10 transition-transform duration-500 ease-out transform -translate-x-full w-[70%] [&.open]:translate-x-0 lg:hidden"
+      role="dialog"
+      data-i18n-aria-label="main.menu"
+    ></mobile-nav-bar>
+
+    <!-- MAIN CONTENT AREA -->
+    <div
+      id="main-content-area"
+      class="in-[.in-game]:hidden flex-1 basis-full min-w-0 min-h-dvh in-[.page-open]:min-h-0 in-[.page-open]:overflow-hidden relative pt-[var(--top-ad-pad,0px)] in-[.page-open]:pt-[var(--top-ad-height,0px)] transition-[margin] duration-500 ease-out will-change-[margin-left] flex flex-col"
+    >
+      <!-- Desktop Top Bar (sticky so it stays visible while the page scrolls,
+           offset below the header ad when one is showing; static while an
+           inline page is open, when the content area is padded below the ad
+           instead and nothing scrolls) -->
+      <desktop-nav-bar
+        class="sticky top-[var(--top-ad-height,0px)] z-[60] in-[.page-open]:static"
+      ></desktop-nav-bar>
+
+      <banned-modal></banned-modal>
+      <marketing-consent-toast></marketing-consent-toast>
+
+      <!-- Main container with responsive padding -->
+      <main-layout class="contents">
+        <play-page class="contents"></play-page>
+        <admin-panel
+          id="page-admin-panel"
+          class="hidden w-full h-full page-content relative z-50"
+        ></admin-panel>
+        <matchmaking-modal
+          id="page-matchmaking"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></matchmaking-modal>
+        <news-modal
+          id="page-news"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></news-modal>
+        <single-player-modal
+          id="page-single-player"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></single-player-modal>
+        <host-lobby-modal
+          id="page-host-lobby"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></host-lobby-modal>
+        <join-lobby-modal
+          id="page-join-lobby"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></join-lobby-modal>
+        <store-modal
+          id="page-item-store"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></store-modal>
+        <user-setting
+          id="page-settings"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></user-setting>
+        <leaderboard-modal
+          id="page-leaderboard"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></leaderboard-modal>
+        <troubleshooting-modal
+          id="page-troubleshooting"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></troubleshooting-modal>
+
+        <clan-modal
+          id="page-clan"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></clan-modal>
+        <account-modal
+          id="page-account"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></account-modal>
+        <game-stats-modal
+          id="page-stats"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></game-stats-modal>
+        <player-profile-modal
+          id="page-profile"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></player-profile-modal>
+        <help-modal
+          id="page-help"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></help-modal>
+        <language-modal
+          id="page-language"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></language-modal>
+        <inventory-modal
+          id="page-inventory"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></inventory-modal>
+        <ranked-modal
+          id="page-ranked"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></ranked-modal>
+        <detailed-view-modal
+          id="page-detailed-view"
+          inline
+          class="hidden w-full h-full page-content relative z-50"
+        ></detailed-view-modal>
+      </main-layout>
+
+      <div class="[.in-game_&]:hidden mt-auto flex flex-col shrink-0">
+        <page-footer></page-footer>
+      </div>
+
+      <!-- Global Modals -->
+      <steam-link-modal></steam-link-modal>
+      <steam-handoff-modal></steam-handoff-modal>
+      <!-- Opened from the nav profile menu (#modal=...) -->
+      <account-settings-modal></account-settings-modal>
+      <change-username-modal></change-username-modal>
+      <subscription-modal></subscription-modal>
+    </div>
+
+    <!-- Game components -->
+    <div id="app"></div>
+    <music-player class="fixed bottom-4 right-4 z-[300]"></music-player>
+
+    <!-- Battle news, attack controls, and the activity log have separate anchors. -->
+    <div
+      class="fixed bottom-0 left-0 z-[200] flex w-full flex-col pointer-events-none sm:flex-row sm:items-end lg:grid lg:grid-cols-[1fr_500px_1fr] lg:items-end min-[1200px]:px-4"
+      style="
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      "
+    >
+      <!-- The attack stack stays separate from the lower-center activity log. -->
+      <div
+        class="contents sm:flex sm:w-[500px] sm:flex-col sm:pointer-events-none lg:col-start-2 sm:z-10"
+      >
+        <attacks-display
+          class="game-attacks-anchor w-full pointer-events-auto"
+        ></attacks-display>
+        <events-display
+          class="game-activity-feed-anchor w-full pointer-events-auto"
+        ></events-display>
+      </div>
+
+      <!-- Chat and actionable prompts remain at the right. -->
+      <div
+        class="flex flex-col items-end pointer-events-none order-2 sm:order-none sm:flex-1 lg:col-start-3 lg:self-end lg:justify-end min-[1200px]:mr-16"
+      >
+        <chat-display
+          class="w-full sm:w-auto pointer-events-auto"
+        ></chat-display>
+        <actionable-events
+          class="w-full sm:w-auto pointer-events-auto"
+        ></actionable-events>
+      </div>
+    </div>
+
+    <global-chat game-mode></global-chat>
+
+    <aside
+      id="game-action-sidebar"
+      aria-label="Game controls and construction"
+      class="fixed right-3 top-1/2 z-[201] flex max-h-[calc(100dvh-1.5rem)] w-64 -translate-y-1/2 flex-col gap-2 overflow-y-auto rounded-2xl border border-amber-300/20 bg-zinc-950/90 p-2 text-white shadow-2xl backdrop-blur-xl pointer-events-auto"
+      style="right: max(0.75rem, env(safe-area-inset-right))"
+    >
+      <control-panel class="w-full"></control-panel>
+      <unit-display class="w-full"></unit-display>
+    </aside>
+
+    <!-- Game modals and overlays -->
+    <emoji-table></emoji-table>
+    <build-menu></build-menu>
+    <win-modal></win-modal>
+    <new-lobby-prompt></new-lobby-prompt>
+    <game-starting-modal></game-starting-modal>
+    <div class="flex flex-col items-end fixed top-0 right-0 z-1000 gap-2">
+      <game-right-sidebar></game-right-sidebar>
+      <replay-panel></replay-panel>
+    </div>
+    <settings-modal></settings-modal>
+    <!-- The in-game settings modal: the same component as #page-settings, but
+         non-inline, and mounted out here because the page's copy sits in a
+         subtree that is hidden during a match. It must stay AFTER
+         #page-settings in document order: ModalRouter.routeFromHash and
+         Main.ts both resolve this component with
+         document.querySelector("user-setting"), which takes the first match. -->
+    <user-setting id="game-settings"></user-setting>
+    <player-panel></player-panel>
+    <spawn-timer></spawn-timer>
+    <immunity-timer></immunity-timer>
+    <alert-frame></alert-frame>
+    <chat-modal></chat-modal>
+    <multi-tab-modal></multi-tab-modal>
+    <game-left-sidebar></game-left-sidebar>
+    <performance-overlay></performance-overlay>
+    <player-info-overlay></player-info-overlay>
+    <heads-up-message></heads-up-message>
+
+    <!-- Featured stream: direct <body> child (NOT inside the in-[.in-game]:hidden
+         home container) so the Twitch iframe is never display:none'd during a game,
+         which would unmount the player and break ToS-compliant playback. The
+         component is position:fixed and self-manages visibility (pauses in-game). -->
+    <featured-stream></featured-stream>
+
+    <!-- Steam shell status bar. A direct <body> child, like
+         featured-stream above, so it is not inside the home container -- but
+         unlike it, deliberately hidden in-game (see the component's comment).
+         Renders nothing outside the desktop shell. -->
+    <desktop-status-bar></desktop-status-bar>
+
+    <!-- Scripts -->
+    <script>
+      // Remove preload class after everything is loaded
+      window.addEventListener("load", function () {
+        requestAnimationFrame(() => {
+          document.documentElement.classList.remove("preload");
+        });
+      });
+
+      // Fallback: remove preload class after timeout in case DOMContentLoaded never fires
+      setTimeout(function () {
+        document.documentElement.classList.remove("preload");
+      }, 3000);
+    </script>
+
+    <script>
+      // Fallback sidebar toggle so hamburger works even if module bundle fails to load
+      window.__toggleSidebar = function (e) {
+        try {
+          const sidebar = document.getElementById("sidebar-menu");
+          const backdrop = document.getElementById("mobile-menu-backdrop");
+          if (!sidebar || !backdrop) return;
+
+          const isOpen = sidebar.classList.contains("open");
+
+          if (isOpen) {
+            sidebar.classList.remove("open");
+            backdrop.classList.remove("open");
+            document.documentElement.classList.remove("overflow-hidden");
+            sidebar.setAttribute("aria-hidden", "true");
+            sidebar.removeAttribute("aria-modal");
+            backdrop.setAttribute("aria-hidden", "true");
+          } else {
+            sidebar.classList.add("open");
+            backdrop.classList.add("open");
+            document.documentElement.classList.add("overflow-hidden");
+            sidebar.setAttribute("aria-hidden", "false");
+            sidebar.setAttribute("aria-modal", "true");
+            backdrop.setAttribute("aria-hidden", "false");
+          }
+
+          const hb = document.getElementById("hamburger-btn");
+          if (hb) hb.setAttribute("aria-expanded", (!isOpen).toString());
+        } catch (err) {
+          console.error("Toggle failed", err);
+        }
+      };
+
+      // Wire up the hamburger button inline
+      const hamburger = document.getElementById("hamburger-btn");
+      if (hamburger) {
+        hamburger.onclick = window.__toggleSidebar;
+        hamburger.setAttribute("aria-expanded", "false");
+      }
+
+      // Wire up backdrop click to close menu
+      const backdrop = document.getElementById("mobile-menu-backdrop");
+      if (backdrop) {
+        backdrop.onclick = function (e) {
+          const sidebar = document.getElementById("sidebar-menu");
+          if (sidebar && sidebar.classList.contains("open")) {
+            window.__toggleSidebar(e);
+          }
+        };
+      }
+
+      // Wire up Escape key to close menu
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" || e.key === "Esc") {
+          const sidebar = document.getElementById("sidebar-menu");
+          if (sidebar && sidebar.classList.contains("open")) {
+            window.__toggleSidebar(e);
+          }
+        }
+      });
+    </script>
+
+    <!-- Analytics -->
+  </body>
+</html>

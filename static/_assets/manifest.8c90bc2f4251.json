@@ -1,0 +1,22 @@
+{
+  "icons": [
+    {
+      "purpose": "any",
+      "sizes": "any",
+      "src": "images/MiddleEastDefendUserLogo.e93e5dfb4eb5.jpg",
+      "type": "image/jpeg"
+    }
+  ],
+  "orientation": "portrait",
+  "display_override": [
+    "fullscreen",
+    "minimal-ui"
+  ],
+  "display": "standalone",
+  "dir": "auto",
+  "lang": "fa",
+  "name": "دفاع خاورمیانه",
+  "short_name": "دفاع خاورمیانه",
+  "start_url": "/",
+  "id": "/"
+}

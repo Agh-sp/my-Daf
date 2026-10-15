@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="oil" x1="5" y1="3" x2="19" y2="21" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE28A"/>
+      <stop offset=".48" stop-color="#E9A824"/>
+      <stop offset="1" stop-color="#A9570B"/>
+    </linearGradient>
+    <linearGradient id="oil-shine" x1="7" y1="7" x2="12" y2="16" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8D9" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#FFF8D9" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M12 2.25S4.55 10.56 4.55 15.1a7.45 7.45 0 1 0 14.9 0C19.45 10.56 12 2.25 12 2.25Z" fill="url(#oil)" stroke="#6D390D" stroke-width="1.15"/>
+  <path d="M9.35 8.1c-1.45 2.05-2.2 3.9-2.2 5.05" stroke="url(#oil-shine)" stroke-width="1.65" stroke-linecap="round"/>
+  <path d="M8.8 16.1a3.35 3.35 0 0 0 3.35 3.35" stroke="#FFF4C2" stroke-opacity=".82" stroke-width="1.05" stroke-linecap="round"/>
+  <path d="M15.8 4.3c.62.76 1.25 1.55 1.84 2.34" stroke="#FFF8D9" stroke-opacity=".85" stroke-width=".8" stroke-linecap="round"/>
+</svg>
