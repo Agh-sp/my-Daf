@@ -40,7 +40,6 @@ import {
   PlayerRecord,
   PlayerReport,
   PublicGameType,
-  PUBLIC_LOBBY_START_DELAY_MS,
   ServerDesyncSchema,
   ServerErrorMessage,
   ServerLobbyInfoMessage,
@@ -662,20 +661,6 @@ export class GameServer {
         conflicting.ws.close(CloseCode.Normal, KICK_REASON_DUPLICATE_SESSION);
         this.clients.markLeft(conflicting);
       }
-    }
-
-    // The scheduled lobby's initial countdown starts when it is created, not
-    // when anyone arrives. If it sat empty until that countdown expired, the
-    // first player would otherwise start alone. Give an empty scheduled
-    // public lobby a full join window when its first player arrives.
-    if (
-      this.stage === "lobby" &&
-      this.publicGameType !== undefined &&
-      this.publicGameType !== "hosted" &&
-      !client.spectator &&
-      this.playerCount() === 0
-    ) {
-      this.setStartsAt(Date.now() + PUBLIC_LOBBY_START_DELAY_MS);
     }
 
     // Client connection accepted. Added before the first
