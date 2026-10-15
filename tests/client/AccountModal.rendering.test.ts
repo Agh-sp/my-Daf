@@ -14,11 +14,16 @@ vi.mock("../../src/client/Api", () => ({
 vi.mock("../../src/client/Auth", () => ({
   linkGoogle: vi.fn(async () => true),
   linkSteam: vi.fn(async () => true),
+  LocalAccountLoginUnavailableError: class LocalAccountLoginUnavailableError extends Error {},
   loginLocalAccount: vi.fn(),
   logOut: vi.fn(async () => true),
   reauthAfterCrazyGamesChange: vi.fn(async () => false),
   sendMagicLink: vi.fn(async () => true),
   getAuthHeader: vi.fn(async () => "Bearer test-token"),
+}));
+
+vi.mock("../../src/client/InGameModal", () => ({
+  showInGameAlert: vi.fn(async () => undefined),
 }));
 
 vi.mock("../../src/client/Utils", () => ({
@@ -58,8 +63,10 @@ import { AccountModal } from "../../src/client/AccountModal";
 import {
   linkGoogle,
   linkSteam,
+  LocalAccountLoginUnavailableError,
   loginLocalAccount,
 } from "../../src/client/Auth";
+import { showInGameAlert } from "../../src/client/InGameModal";
 
 function makeUserMe(
   overrides: Partial<UserMeResponse["user"]>,
@@ -261,7 +268,9 @@ describe("AccountModal — rendering", () => {
 
     const text = modal.textContent ?? "";
     expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
-    expect(modal.querySelector('input[autocomplete="current-password"]')).toBeTruthy();
+    expect(
+      modal.querySelector('input[autocomplete="current-password"]'),
+    ).toBeTruthy();
     expect(text).toContain("account_modal.login_email_exists");
   });
 
@@ -271,7 +280,9 @@ describe("AccountModal — rendering", () => {
 
     const text = modal.textContent ?? "";
     expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
-    expect(modal.querySelector('input[autocomplete="current-password"]')).toBeTruthy();
+    expect(
+      modal.querySelector('input[autocomplete="current-password"]'),
+    ).toBeTruthy();
     expect(text).not.toContain("account_modal.login_email_exists");
   });
 
@@ -306,8 +317,12 @@ describe("AccountModal — rendering", () => {
       await flushOpen();
 
       const text = modal.textContent ?? "";
-      expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
-      expect(modal.querySelector('input[autocomplete="current-password"]')).toBeTruthy();
+      expect(
+        modal.querySelector('input[autocomplete="username"]'),
+      ).toBeTruthy();
+      expect(
+        modal.querySelector('input[autocomplete="current-password"]'),
+      ).toBeTruthy();
       expect(text).not.toContain("account_modal.desktop_login_discord");
     });
 
@@ -319,7 +334,9 @@ describe("AccountModal — rendering", () => {
       await flushOpen();
 
       const text = modal.textContent ?? "";
-      expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
+      expect(
+        modal.querySelector('input[autocomplete="username"]'),
+      ).toBeTruthy();
       expect(text).not.toContain("account_modal.clear_session");
     });
 
@@ -328,7 +345,9 @@ describe("AccountModal — rendering", () => {
       await flushOpen();
 
       const text = modal.textContent ?? "";
-      expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
+      expect(
+        modal.querySelector('input[autocomplete="username"]'),
+      ).toBeTruthy();
       expect(text).toContain("account_modal.clear_session");
       expect(text).not.toContain("main.login_discord");
     });
@@ -341,7 +360,9 @@ describe("AccountModal — rendering", () => {
       await flushOpen();
 
       const text = modal.textContent ?? "";
-      expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
+      expect(
+        modal.querySelector('input[autocomplete="username"]'),
+      ).toBeTruthy();
       expect(text).not.toContain("main.login_discord");
     });
 
@@ -368,6 +389,32 @@ describe("AccountModal — rendering", () => {
         expect(loginLocalAccount).toHaveBeenCalledWith(
           "A13",
           "local-password-123",
+        ),
+      );
+    });
+
+    it("explains when local account sign-in is not configured", async () => {
+      vi.mocked(loginLocalAccount).mockRejectedValue(
+        new LocalAccountLoginUnavailableError(),
+      );
+      modal.open();
+      await flushOpen();
+
+      const username = modal.querySelector<HTMLInputElement>(
+        'input[autocomplete="username"]',
+      )!;
+      username.value = "A13";
+      username.dispatchEvent(new Event("input", { bubbles: true }));
+      const password = modal.querySelector<HTMLInputElement>(
+        'input[autocomplete="current-password"]',
+      )!;
+      password.value = "local-password-123";
+      password.dispatchEvent(new Event("input", { bubbles: true }));
+      findButtonByText("ورود به حساب")!.click();
+
+      await vi.waitFor(() =>
+        expect(showInGameAlert).toHaveBeenCalledWith(
+          "ورود حساب‌های محلی روی سرور تنظیم نشده است. با مدیر سرور تماس بگیرید.",
         ),
       );
     });
@@ -513,7 +560,9 @@ describe("AccountModal — rendering", () => {
 
     const text = modal.textContent ?? "";
     expect(modal.querySelector('input[autocomplete="username"]')).toBeTruthy();
-    expect(modal.querySelector('input[autocomplete="current-password"]')).toBeTruthy();
+    expect(
+      modal.querySelector('input[autocomplete="current-password"]'),
+    ).toBeTruthy();
     expect(text).not.toContain("main.login_steam");
   });
 

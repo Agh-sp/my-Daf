@@ -90,6 +90,7 @@
     "auth_login": "Sign in",
     "auth_login_failed": "Incorrect username or password, or this account is banned.",
     "auth_login_fields_required": "Enter your phone number or username and password.",
+    "auth_local_login_unavailable": "Local account sign-in is not configured on this server. Contact the server administrator.",
     "auth_login_method": "Sign-in method",
     "auth_signing_in": "Signing in…",
     "auth_test_login_success": "Signed in as {username}.",

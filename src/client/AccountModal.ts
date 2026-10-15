@@ -8,6 +8,7 @@ import { fetchPlayerById, getUserMe, invalidateUserMe } from "./Api";
 import {
   linkGoogle,
   linkSteam,
+  LocalAccountLoginUnavailableError,
   loginLocalAccount,
   logOut,
   reauthAfterCrazyGamesChange,
@@ -78,8 +79,9 @@ const PHONE_AUTH_TEXT_FA: Record<string, string> = {
     "شماره تلفن یا نام کاربری و رمز عبور را کامل کنید.",
   "account_modal.auth_login_failed":
     "نام کاربری یا رمز عبور نادرست است، یا این حساب مسدود شده است.",
-  "account_modal.auth_test_login_success":
-    "با حساب {username} وارد شدی.",
+  "account_modal.auth_local_login_unavailable":
+    "ورود حساب‌های محلی روی سرور تنظیم نشده است. با مدیر سرور تماس بگیرید.",
+  "account_modal.auth_test_login_success": "با حساب {username} وارد شدی.",
   "account_modal.auth_phone_invalid":
     "شماره را بدون +98 و با ۱۰ رقم وارد کنید؛ شماره باید با 9 شروع شود.",
   "account_modal.auth_password_required": "رمز عبور را وارد کنید.",
@@ -992,8 +994,12 @@ export class AccountModal extends BaseModal {
         "green",
       );
       this.close();
-    } catch {
-      await showInGameAlert(phoneAuthText("account_modal.auth_login_failed"));
+    } catch (error) {
+      const errorKey =
+        error instanceof LocalAccountLoginUnavailableError
+          ? "account_modal.auth_local_login_unavailable"
+          : "account_modal.auth_login_failed";
+      await showInGameAlert(phoneAuthText(errorKey));
     } finally {
       this.authSubmitting = false;
     }

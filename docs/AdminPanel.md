@@ -62,6 +62,10 @@ Local account tokens require `LOCAL_AUTH_SECRET` with at least 32 random
 characters. Create the first account from the admin panel's Accounts tab.
 There is no public signup or SMS verification flow. Admin-created accounts
 sign in in the site's account modal using their username and password.
+If a valid local account receives a sign-in service unavailable error, check
+that this secret is set in the PM2 process environment on every worker, then
+restart the workers. Keep the secret stable and private; changing it expires
+existing local-account sessions but does not change account passwords.
 
 ## Remaining external services
 

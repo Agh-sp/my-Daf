@@ -10,16 +10,23 @@ import { UserSettings } from "src/client/UserSettings";
 import { z } from "zod";
 import { getApiBase, getAudience } from "./Api";
 import { ClientEnv } from "./ClientEnv";
-import { localAccountApiUrl } from "./LocalAccountApi";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
 import type { DesktopSessionState, SessionFailureKind } from "./DesktopShell";
 import { desktopLinkGate, isDesktopShell } from "./DesktopShell";
 import { showInGameAlert } from "./InGameModal";
+import { localAccountApiUrl } from "./LocalAccountApi";
 import type { SteamTicketResult } from "./SteamSDK";
 import { steamSDK } from "./SteamSDK";
 import { generateCryptoRandomUUID, translateText } from "./Utils";
 
 export type UserAuth = { jwt: string; claims: TokenPayload } | false;
+
+export class LocalAccountLoginUnavailableError extends Error {
+  constructor() {
+    super("Local account sign-in is unavailable");
+    this.name = "LocalAccountLoginUnavailableError";
+  }
+}
 
 const PERSISTENT_ID_KEY = "player_persistent_id";
 const LOCAL_ACCOUNT_TOKEN_KEY = "local_account_access_token";
@@ -295,6 +302,9 @@ export async function loginLocalAccount(
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) {
+    if (response.status === 503) {
+      throw new LocalAccountLoginUnavailableError();
+    }
     throw new Error(
       response.status === 403
         ? "This account is banned"
