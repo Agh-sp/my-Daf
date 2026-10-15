@@ -16,3 +16,5 @@ coverage*
 tests/
 scripts/replay/
 scripts/split-packages/
+static
+map-generator
