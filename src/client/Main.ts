@@ -824,6 +824,13 @@ class Client {
       void onUserMe(false);
     });
 
+    document.addEventListener("local-account-signed-in", () => {
+      invalidateUserMe();
+      snapshotLapseMarker();
+      const generation = ++authGeneration;
+      void getUserMe().then(applyUserMe(generation));
+    });
+
     // Register before initial auth settles: the status bar may already offer
     // Retry while startup is still waiting for its first session.
     subscribeDesktopSessionRecovery(async () => {

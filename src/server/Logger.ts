@@ -7,6 +7,7 @@ import {
 import { OpenTelemetryTransportV3 } from "@opentelemetry/winston-transport";
 import * as dotenv from "dotenv";
 import winston from "winston";
+import { AdminLogBuffer } from "./AdminLogBuffer";
 import { getOtelResource } from "./OtelResource";
 import { ServerEnv } from "./ServerEnv";
 dotenv.config();
@@ -61,6 +62,7 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.Console(),
     new OpenTelemetryTransportV3(),
+    new AdminLogBuffer(),
   ],
 });
 

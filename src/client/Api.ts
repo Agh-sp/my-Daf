@@ -63,6 +63,7 @@ import {
 import { ClientEnv } from "./ClientEnv";
 import { ensureServerList } from "./ServerList";
 import { UserSettings } from "./UserSettings";
+import { localAccountApiUrl } from "./LocalAccountApi";
 
 export async function fetchPlayerById(
   playerId: string,
@@ -232,12 +233,17 @@ async function requestUserMe(): Promise<{
     // the session — cosmetics, store, inventory, the multiplayer join path —
     // awaits that same promise. An abort lands in the catch below, which
     // returns false, the same answer a signed-out player already gets.
-    const response = await fetch(getApiBase() + "/users/@me", {
+    const response = await fetch(
+      claims.provider === "local"
+        ? localAccountApiUrl("/me")
+        : getApiBase() + "/users/@me",
+      {
       headers: {
         authorization: `Bearer ${jwt}`,
       },
       signal: AbortSignal.timeout(10_000),
-    });
+      },
+    );
     if (response.status === 401) {
       // Only when the session that issued this request is still the current
       // one — the same guard, and the same reason, as the setPlayerId one

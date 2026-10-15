@@ -1,6 +1,7 @@
 import { assetUrl } from "@openfront/shared/AssetUrls";
 import { html, LitElement, TemplateResult } from "lit";
 import { customElement } from "lit/decorators.js";
+import { whenModalLoaded } from "../LazyModals";
 import { NavNotificationsController } from "./NavNotificationsController";
 
 const MOBILE_ITEM =
@@ -17,10 +18,13 @@ export class MobileNavBar extends LitElement {
   private _notifications = new NavNotificationsController(this);
 
   private openFriends() {
-    window.setTimeout(
-      () => window.dispatchEvent(new Event("global-chat-open-friends")),
-      0,
-    );
+    whenModalLoaded("account-modal", () => {
+      document
+        .querySelector<
+          HTMLElement & { open(args?: Record<string, unknown>): void }
+        >("account-modal")
+        ?.open({ tab: "friends" });
+    });
   }
 
   createRenderRoot() {
@@ -128,11 +132,7 @@ export class MobileNavBar extends LitElement {
           class="relative flex items-center w-full cursor-pointer"
           @click=${this.openFriends}
         >
-          <button
-            class="${MOBILE_ITEM}"
-            data-page="page-play"
-            data-i18n="main.friends"
-          ></button>
+          <button class="${MOBILE_ITEM}" data-i18n="main.friends"></button>
           ${this._notifications.friendRequestCount() > 0
             ? html`<span
                 class="absolute right-0 grid min-w-5 h-5 place-items-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white"

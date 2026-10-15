@@ -12,8 +12,14 @@ import {
 } from "@openfront/shared/WireSchemas";
 import { Logger } from "winston";
 import WebSocket from "ws";
+import { adminAccountKey } from "./AdminBanStore";
 import { Client } from "./Client";
-import { GamePhase, GameServer, JoinResult } from "./GameServer";
+import {
+  AdminGameReport,
+  GamePhase,
+  GameServer,
+  JoinResult,
+} from "./GameServer";
 import {
   noopMatchTelemetryEmitter,
   type MatchTelemetryEmitter,
@@ -21,17 +27,43 @@ import {
 
 export class GameManager {
   private games: Map<GameID, GameServer> = new Map();
+  private readonly completedAdminReports: ReturnType<
+    GameServer["adminReports"]
+  > = [];
+  private maintenanceMode = false;
 
   constructor(
     private log: Logger,
     private readonly telemetry: MatchTelemetryEmitter = noopMatchTelemetryEmitter,
     private readonly telemetryBuildHash: string = "DEV",
+    private readonly persistReport: (report: AdminGameReport) => void = () => {},
   ) {
     setInterval(() => this.tick(), 1000);
   }
 
   public game(id: GameID): GameServer | null {
     return this.games.get(id) ?? null;
+  }
+
+  public isMaintenanceMode(): boolean {
+    return this.maintenanceMode;
+  }
+
+  public async setMaintenanceMode(enabled: boolean): Promise<void> {
+    this.maintenanceMode = enabled;
+    if (!enabled) return;
+
+    const games = [...this.games.values()];
+    this.retainReports(games.flatMap((game) => game.adminReports()));
+    const ended = await Promise.allSettled(games.map((game) => game.end()));
+    this.games.clear();
+    for (const result of ended) {
+      if (result.status === "rejected") {
+        this.log.error("error ending game for admin maintenance", {
+          error: result.reason,
+        });
+      }
+    }
   }
 
   public publicLobbies(): GameServer[] {
@@ -74,6 +106,10 @@ export class GameManager {
     publicGameType?: PublicGameType,
     matchmakingTeams?: string[][],
   ): GameServer | null {
+    if (this.maintenanceMode) {
+      this.log.warn("cannot create game while maintenance mode is enabled");
+      return null;
+    }
     if (this.games.has(id)) {
       this.log.warn("cannot create game, id already exists", { gameID: id });
       return null;
@@ -110,6 +146,7 @@ export class GameManager {
       {
         telemetry: this.telemetry,
         telemetryBuildHash: this.telemetryBuildHash,
+        onReport: this.persistReport,
       },
     );
     this.games.set(id, game);
@@ -136,11 +173,36 @@ export class GameManager {
       createdAt: game.createdAt,
       players: game.activeClients().map((client) => ({
         clientID: client.clientID,
+        accountKey: adminAccountKey(client.persistentID),
         username: client.username,
         spectator: client.spectator,
         platform: client.platform,
       })),
     }));
+  }
+
+  adminReports() {
+    return [
+      ...this.completedAdminReports,
+      ...[...this.games.values()].flatMap((game) => game.adminReports()),
+    ];
+  }
+
+  private retainReports(reports: ReturnType<GameServer["adminReports"]>): void {
+    this.completedAdminReports.push(...reports);
+    if (this.completedAdminReports.length > 1000) {
+      this.completedAdminReports.splice(
+        0,
+        this.completedAdminReports.length - 1000,
+      );
+    }
+  }
+
+  adminBanAccount(accountKey: string): number {
+    return [...this.games.values()].reduce(
+      (total, game) => total + game.adminBanAccount(accountKey),
+      0,
+    );
   }
 
   // Every platform is present, zeros included, so a platform whose last
@@ -165,6 +227,7 @@ export class GameManager {
   }
 
   tick() {
+    if (this.maintenanceMode) return;
     const active = new Map<GameID, GameServer>();
     for (const [id, game] of this.games) {
       game.pruneStaleClients();
@@ -216,6 +279,7 @@ export class GameManager {
       }
 
       if (phase === GamePhase.Finished) {
+        this.retainReports(game.adminReports());
         // The expected end of a game that hit the cap, not a fault.
         if (game.pastMaxDuration()) {
           this.log.info("game past max duration", { gameID: id });

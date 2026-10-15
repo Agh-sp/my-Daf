@@ -27,12 +27,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
+import { AdminBanStore, adminAccountKey } from "./AdminBanStore";
+import { setAdminLogPersistence } from "./AdminLogBuffer";
 import { registerAdminBotRoutes } from "./AdminBotRoutes";
 import { registerAdminPanelRoutes } from "./AdminPanelRoutes";
 import { censorPlayer } from "./Censor";
 import { Client } from "./Client";
 import { gameApiCors } from "./GameApiCors";
 import { GameManager } from "./GameManager";
+import { registerLocalAccountRoutes } from "./LocalAccountRoutes";
+import { getLocalDataStore } from "./LocalDataStore";
 import { registerGamePreviewRoute } from "./GamePreviewRoute";
 import { GamePhase, type GameServer } from "./GameServer";
 import { planJoinVerify, verifyJoin } from "./JoinVerify";
@@ -83,11 +87,24 @@ export async function startWorker() {
     // undefined.
     workerId,
   });
-  const gm = new GameManager(log, telemetry, buildHash);
+  const localDataStore = getLocalDataStore();
+  setAdminLogPersistence((entry) => localDataStore.appendAdminLog(entry));
+  const gm = new GameManager(log, telemetry, buildHash, (report) => {
+    localDataStore.saveReports([{ ...report, workerId }]);
+  });
+  const adminBanStore = new AdminBanStore(workerId, ServerEnv.numWorkers());
   server.on("close", () => telemetry.stop());
 
   // Initialize lobby service (handles WebSocket upgrade routing)
-  const lobbyService = new WorkerLobbyService(server, wss, gm, log);
+  const lobbyService = new WorkerLobbyService(
+    server,
+    wss,
+    gm,
+    log,
+    (report) => {
+      localDataStore.saveReports([{ ...report, source: "chat", workerId }]);
+    },
+  );
   const singleplayerPresence = new SingleplayerPresence();
 
   setTimeout(
@@ -168,6 +185,11 @@ export async function startWorker() {
   // and returns it, so callers don't need to know the sharding. nginx (and the
   // vite dev proxy) randomly route here to spread new games across workers.
   app.post("/api/create_game", async (req, res) => {
+    if (gm.isMaintenanceMode()) {
+      return res
+        .status(503)
+        .json({ error: "Games are unavailable during maintenance" });
+    }
     // Identify the creator from their token. Never accept persistentID directly.
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -478,6 +500,13 @@ export async function startWorker() {
     gm,
     workerId,
     chatReports: () => lobbyService.chatReports(),
+    banStore: adminBanStore,
+    localDataStore,
+  });
+  registerLocalAccountRoutes({
+    app,
+    store: localDataStore,
+    workerId,
   });
   registerAdminBotRoutes({ app, gm, workerId, log });
 
@@ -515,6 +544,11 @@ export async function startWorker() {
           log.warn(
             `Invalid message before join: ${JSON.stringify(clientMsg, replacer)}`,
           );
+          return;
+        }
+
+        if (gm.isMaintenanceMode()) {
+          ws.close(CloseCode.TryAgainLater, "Server maintenance");
           return;
         }
 
@@ -578,6 +612,11 @@ export async function startWorker() {
           return;
         }
         const { persistentId, claims } = result;
+
+        if (await adminBanStore.isBanned(adminAccountKey(persistentId))) {
+          ws.close(CloseCode.Banned, CloseReason.Banned);
+          return;
+        }
 
         if (claims?.role === "banned") {
           ws.close(CloseCode.Banned, CloseReason.Banned);

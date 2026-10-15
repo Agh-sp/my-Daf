@@ -3,6 +3,7 @@ import { randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 import { getUserMe, verifyClientToken } from "./jwt";
+import { logger } from "./Logger";
 import { ServerEnv } from "./ServerEnv";
 
 const MAX_CHAT_CLIENTS = 500;
@@ -14,6 +15,7 @@ const MESSAGE_INTERVAL_MS = 1000;
 const REPORT_INTERVAL_MS = 10_000;
 const MAX_REPORTS = 1000;
 const TEST_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const log = logger.child({ comp: "global_chat" });
 const TEST_ACCOUNTS: Readonly<Record<string, GlobalChatIdentity>> = {
   arezoad: { publicId: "dev-chat-arezo-ad", username: "arezoAD" },
   azizad: { publicId: "dev-chat-aziz-ad", username: "AzizAD" },
@@ -127,6 +129,7 @@ export class GlobalChatRoom {
   constructor(
     verifyIdentity: ClientIdentityVerifier = verifyRegisteredIdentity,
     testAccountsEnabled = ServerEnv.env() === GameEnv.Dev,
+    private readonly persistReport: (report: GlobalChatReport) => void = () => {},
   ) {
     this.verifyIdentity = verifyIdentity;
     this.testAccountsEnabled = testAccountsEnabled;
@@ -335,6 +338,12 @@ export class GlobalChatRoom {
     };
     this.history.push(message);
     if (this.history.length > MAX_HISTORY) this.history.shift();
+    log.info("public chat message", {
+      publicId: identity.publicId,
+      username: identity.username,
+      text,
+      sentAt: now,
+    });
     this.broadcast({ type: "message", message });
   }
 
@@ -364,7 +373,7 @@ export class GlobalChatRoom {
     state.lastReportAt = now;
     state.reportIds.add(messageId);
 
-    this.reports.push({
+    const report: GlobalChatReport = {
       id: randomUUID(),
       messageId,
       reportedBy: identity,
@@ -375,7 +384,15 @@ export class GlobalChatRoom {
       message: reportedMessage.text,
       reason,
       createdAt: now,
-    });
+    };
+    this.reports.push(report);
+    try {
+      this.persistReport(report);
+    } catch (error) {
+      log.error("failed to persist global chat report", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     if (this.reports.length > MAX_REPORTS) this.reports.shift();
     client.send(JSON.stringify({ type: "reported", messageId }));
   }

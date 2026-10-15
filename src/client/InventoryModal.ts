@@ -11,9 +11,10 @@ import { PlayerPattern } from "@openfront/shared/WireSchemas";
 import type { TemplateResult } from "lit";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { z } from "zod";
 import Countries from "resources/countries.json" with { type: "json" };
 import { getUserMe } from "./Api";
-import { userAuth } from "./Auth";
+import { getLocalAccountAccessToken, userAuth } from "./Auth";
 import "./components/baseComponents/Button";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticCard";
@@ -31,6 +32,8 @@ import type {
 import "./components/InventoryLoadoutMenu";
 import { ProgressiveList } from "./components/ProgressiveList";
 import { modalHeader } from "./components/ui/ModalHeader";
+import { localAccountApiUrl } from "./LocalAccountApi";
+import { translateText } from "./Utils";
 import { signedOutNotice } from "./components/ui/SignedOutNotice";
 import {
   fetchCosmetics,
@@ -50,6 +53,17 @@ import {
 } from "./UserSettings";
 
 type OwnershipState = "loading" | "guest" | "loaded" | "error";
+
+const LocalInventorySchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string(),
+      createdAt: z.number(),
+    }),
+  ),
+});
 
 function countryFlag(name: string, code: string): Flag {
   return {
@@ -73,6 +87,10 @@ export class InventoryModal extends BaseModal {
   @state() private loadFailed = false;
   @state() private ownershipState: OwnershipState = "loading";
   @state() private previewingCosmetic: ResolvedCosmetic | null = null;
+  @state() private localInventoryItems: z.infer<
+    typeof LocalInventorySchema
+  >["items"] = [];
+  @state() private localInventoryLoadFailed = false;
 
   private cosmetics: Cosmetics | null = null;
   private userSettings: UserSettings = new UserSettings();
@@ -234,6 +252,28 @@ export class InventoryModal extends BaseModal {
       if (loadId !== this.inventoryLoadId) return;
       this.cosmetics = cosmetics;
       this.loadFailed = cosmetics === null;
+      this.localInventoryLoadFailed = false;
+      const localToken = getLocalAccountAccessToken();
+      if (localToken) {
+        try {
+          const response = await fetch(localAccountApiUrl("/inventory"), {
+            headers: { Authorization: `Bearer ${localToken}` },
+            signal: AbortSignal.timeout(10_000),
+          });
+          if (!response.ok) {
+            throw new Error(`Local inventory request failed: ${response.status}`);
+          }
+          const parsed = LocalInventorySchema.safeParse(await response.json());
+          if (!parsed.success) throw new Error("Invalid local inventory response");
+          this.localInventoryItems = parsed.data.items;
+        } catch (error) {
+          this.localInventoryLoadFailed = true;
+          this.localInventoryItems = [];
+          console.error("Could not load local product inventory", error);
+        }
+      } else {
+        this.localInventoryItems = [];
+      }
     } catch {
       if (loadId !== this.inventoryLoadId) return;
       this.cosmetics = null;
@@ -728,6 +768,24 @@ export class InventoryModal extends BaseModal {
     }
     const category = tab as InventoryCategory;
     return html`
+      ${this.localInventoryLoadFailed
+        ? html`<p role="alert" class="mx-3 mt-3 rounded-lg bg-rose-950/40 p-3 text-sm text-rose-200">
+            ${translateText("inventory.local_products_load_failed")}
+          </p>`
+        : nothing}
+      ${this.localInventoryItems.length > 0
+        ? html`<section dir="rtl" class="mx-3 mt-3 rounded-xl border border-sky-400/20 bg-sky-950/20 p-4">
+            <h2 class="mb-1 font-bold text-sky-100">${translateText("inventory.local_products")}</h2>
+            <p class="mb-3 text-xs text-sky-200/70">${translateText("inventory.local_products_note")}</p>
+            <div class="grid gap-2 sm:grid-cols-2">
+              ${this.localInventoryItems.map((item) => html`<article class="rounded-lg border border-white/10 bg-black/20 p-3">
+                <h3 class="font-semibold text-white">${item.name}</h3>
+                <p class="mt-1 whitespace-pre-wrap text-sm text-white/65">${item.description}</p>
+                <time class="mt-2 block text-xs text-white/40">${new Date(item.createdAt).toLocaleDateString()}</time>
+              </article>`)}
+            </div>
+          </section>`
+        : nothing}
       ${this.ownershipState === "guest"
         ? html`<div data-inventory-sign-in>
             ${signedOutNotice(

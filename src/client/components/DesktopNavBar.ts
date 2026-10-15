@@ -1,6 +1,7 @@
 import { assetUrl } from "@openfront/shared/AssetUrls";
 import { LitElement, html } from "lit";
 import { customElement } from "lit/decorators.js";
+import { whenModalLoaded } from "../LazyModals";
 import { NavNotificationsController } from "./NavNotificationsController";
 import "./NavUtilityIcons";
 
@@ -9,10 +10,13 @@ export class DesktopNavBar extends LitElement {
   private _notifications = new NavNotificationsController(this);
 
   private openFriends() {
-    window.setTimeout(
-      () => window.dispatchEvent(new Event("global-chat-open-friends")),
-      0,
-    );
+    whenModalLoaded("account-modal", () => {
+      document
+        .querySelector<
+          HTMLElement & { open(args?: Record<string, unknown>): void }
+        >("account-modal")
+        ?.open({ tab: "friends" });
+    });
   }
 
   createRenderRoot() {
@@ -113,7 +117,6 @@ export class DesktopNavBar extends LitElement {
         <div class="relative">
           <button
             class="nav-menu-item text-white/70 hover:text-amber-200 font-medium tracking-wider uppercase cursor-pointer transition-colors"
-            data-page="page-play"
             data-i18n="main.friends"
             @click=${this.openFriends}
           ></button>

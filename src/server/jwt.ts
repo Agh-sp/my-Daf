@@ -10,6 +10,7 @@ import { PersistentIdSchema } from "@openfront/shared/WireSchemas";
 import { jwtVerify } from "jose";
 import { z } from "zod";
 import { ServerEnv } from "./ServerEnv";
+import { localUserMe, verifyLocalAccessToken } from "./LocalAuth";
 
 type TokenVerificationResult =
   | {
@@ -31,6 +32,17 @@ export async function verifyClientToken(
         message: "persistent ID not allowed in production",
       };
     }
+  }
+  const localToken = await verifyLocalAccessToken(token);
+  if (localToken.type === "success") {
+    return {
+      type: "success",
+      persistentId: localToken.accountId,
+      claims: localToken.claims,
+    };
+  }
+  if (localToken.type === "error") {
+    return { type: "error", message: localToken.message };
   }
   try {
     const issuer = ServerEnv.jwtIssuer();
@@ -69,6 +81,16 @@ export type UserMeError = { type: "error"; status?: number; message: string };
 export async function getUserMe(
   token: string,
 ): Promise<{ type: "success"; response: UserMeResponse } | UserMeError> {
+  const localToken = await verifyLocalAccessToken(token);
+  if (localToken.type === "success") {
+    return {
+      type: "success",
+      response: localUserMe(localToken.accountId),
+    };
+  }
+  if (localToken.type === "error") {
+    return { type: "error", status: 401, message: localToken.message };
+  }
   try {
     // Get the user object
     const response = await fetch(ServerEnv.jwtIssuer() + "/users/@me", {

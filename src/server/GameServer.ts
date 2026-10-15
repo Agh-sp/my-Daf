@@ -164,7 +164,18 @@ export interface GameServerDeps {
   // so a test can pin a value it can assert on; production always takes the
   // random default.
   mintGroupToken: () => string;
+  onReport: (report: AdminGameReport) => void;
 }
+
+export type AdminGameReport = {
+  id: string;
+  gameID: string;
+  source: "game";
+  reportedBy: { clientID: string; username: string };
+  reported: { clientID: string; username: string };
+  reason: PlayerReport["reason"];
+  createdAt: number;
+};
 
 // 16 URL-safe characters of CSPRNG output — 12 bytes is exactly 16 base64url
 // characters, so there is no padding to strip and no truncation to reason
@@ -185,6 +196,7 @@ export function defaultGameServerDeps(): GameServerDeps {
     telemetry: noopMatchTelemetryEmitter,
     telemetryBuildHash: "DEV",
     mintGroupToken,
+    onReport: () => {},
   };
 }
 
@@ -257,6 +269,7 @@ export class GameServer {
   // pair counts once. Never in the turn log (who reported whom is staff-only);
   // emitted as info.reports of the archived record (see handleReport).
   private readonly reports = new Map<string, PlayerReport>();
+  private readonly reportTimes = new Map<string, number>();
 
   // This private lobby's presence in the public lobby browser (see
   // ListingState.ts).
@@ -543,13 +556,6 @@ export class GameServer {
         clientID: client.clientID,
       });
       return "not_allowlisted";
-    }
-
-    if (!this.passesTrustGate(client)) {
-      this.log.warn("client not trusted, rejecting", {
-        clientID: client.clientID,
-      });
-      return "not_trusted";
     }
 
     // Being routed is not a refusal, so it must not consume the full-lobby
@@ -875,6 +881,41 @@ export class GameServer {
     }
     this.kickClient(clientID, KICK_REASON_ADMIN);
     return true;
+  }
+
+  public adminBanAccount(accountKey: string): number {
+    let kicked = 0;
+    for (const client of [...this.clients.active()]) {
+      if (hashPersistentID(client.persistentID) !== accountKey) continue;
+      if (this.adminKickClient(client.clientID)) kicked++;
+    }
+    return kicked;
+  }
+
+  public adminReports(): AdminGameReport[] {
+    return [...this.reports.entries()].map(([key, report]) => {
+      const reporter = this.gameStartInfo.players.find(
+        (player) => player.clientID === report.reportedBy,
+      );
+      const reported = this.gameStartInfo.players.find(
+        (player) => player.clientID === report.reported,
+      );
+      return {
+        id: `${this.id}:${key}`,
+        gameID: this.id,
+        source: "game" as const,
+        reportedBy: {
+          clientID: report.reportedBy,
+          username: reporter?.username ?? "Unknown",
+        },
+        reported: {
+          clientID: report.reported,
+          username: reported?.username ?? "Unknown",
+        },
+        reason: report.reason,
+        createdAt: this.reportTimes.get(key) ?? this.createdAt,
+      };
+    });
   }
 
   public numDesyncedClients(): number {
@@ -1272,15 +1313,6 @@ export class GameServer {
     return client.publicId !== undefined && allowed.includes(client.publicId);
   }
 
-  // Trusted-only lobbies (GameConfig.trusted) admit only accounts the API
-  // reported as trusted at join time. Shared by joinClient and the seat toggle
-  // for the same reason as passesAllowlist; admins bypass it the same way.
-  private passesTrustGate(client: Client): boolean {
-    if (this.gameConfig.trusted !== true) return true;
-    if (isAdminRole(client.role)) return true;
-    return client.trusted;
-  }
-
   // ONE definition of which member a client belongs to, shared by every path
   // that can seat someone here — joinClient and the Play/Spectate toggle — the
   // same way passesAllowlist is. Null means seat them here.
@@ -1336,7 +1368,6 @@ export class GameServer {
     if (!spectator) {
       if (this.stage === "started" || this.ended) return;
       if (!this.passesAllowlist(client)) return;
-      if (!this.passesTrustGate(client)) return;
       if (this.poolTargetForClient(client) !== null) return;
       const max = this.gameConfig.maxPlayers;
       if (max !== undefined && this.playerCount() >= max) return;
@@ -1607,8 +1638,7 @@ export class GameServer {
     }
     const now = Date.now();
 
-    const lessThanLifetime =
-      this.startsAt === undefined || now < this.startsAt;
+    const lessThanLifetime = this.startsAt === undefined || now < this.startsAt;
     if (
       lessThanLifetime &&
       !this.hasStarted() &&
@@ -2068,6 +2098,17 @@ export class GameServer {
     const key = `${client.clientID}:${reported}`;
     if (this.reports.has(key)) return;
     this.reports.set(key, { reportedBy: client.clientID, reported, reason });
+    this.reportTimes.set(key, Date.now());
+    const savedReport = this.adminReports().find(
+      (report) => report.id === `${this.id}:${key}`,
+    );
+    if (savedReport) {
+      try {
+        this.deps.onReport(savedReport);
+      } catch (error) {
+        this.log.error("failed to persist player report", { error });
+      }
+    }
     this.log.info("player reported", {
       clientID: client.clientID,
       reported,

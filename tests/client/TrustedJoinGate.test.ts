@@ -62,8 +62,6 @@ async function clickCard(): Promise<void> {
   await selector.updateComplete;
 }
 
-const dialog = () => selector.querySelector("confirm-dialog");
-
 beforeEach(async () => {
   window.BOOTSTRAP_CONFIG = {
     gameEnv: "dev",
@@ -92,36 +90,26 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("joining a trusted-only lobby from the homepage", () => {
-  it("shows the trust popup instead of joining when the viewer is untrusted", async () => {
+describe("joining a lobby from the homepage", () => {
+  it("joins a legacy trust-flagged lobby when the viewer is untrusted", async () => {
     await pushLobby(lobby(true));
     await setViewerTrust("untrusted");
     await clickCard();
-    expect(joinLobby).not.toHaveBeenCalled();
-    expect(dialog()).not.toBeNull();
+    expect(joinLobby).toHaveBeenCalledTimes(1);
+    expect(selector.querySelector("confirm-dialog")).toBeNull();
   });
 
-  it("closes the popup on dismiss", async () => {
-    await pushLobby(lobby(true));
-    await clickCard();
-    expect(dialog()).not.toBeNull();
-    dialog()!.dispatchEvent(new CustomEvent("cancel"));
-    await selector.updateComplete;
-    expect(dialog()).toBeNull();
-  });
-
-  it("joins when the viewer is trusted", async () => {
+  it("joins a legacy trust-flagged lobby when the viewer is trusted", async () => {
     await pushLobby(lobby(true));
     await setViewerTrust("trusted");
     await clickCard();
     expect(joinLobby).toHaveBeenCalledTimes(1);
-    expect(dialog()).toBeNull();
   });
 
   it("joins an open lobby regardless of trust", async () => {
     await pushLobby(lobby(false));
     await clickCard();
     expect(joinLobby).toHaveBeenCalledTimes(1);
-    expect(dialog()).toBeNull();
+    expect(selector.querySelector("confirm-dialog")).toBeNull();
   });
 });

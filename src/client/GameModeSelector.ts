@@ -7,23 +7,13 @@ import {
   Quads,
   Trios,
 } from "@openfront/engine-api/game/GameTypes";
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import { PublicGameInfo, PublicGames } from "@openfront/shared/WireSchemas";
 import { html, LitElement, nothing, type TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ClientEnv } from "src/client/ClientEnv";
 import { getDesktopSessionState } from "./Auth";
 import "./components/IOSAddToHomeScreenBanner";
-import {
-  canJoinTrustedLobby,
-  lobbyCard,
-  mapAspectRatios,
-  trustLockIcon,
-  trustRequiredDialog,
-  viewerIsSignedIn,
-  viewerIsTrusted,
-} from "./components/LobbyCard";
-import { crazyGamesSDK } from "./CrazyGamesSDK";
+import { lobbyCard, mapAspectRatios } from "./components/LobbyCard";
 import {
   getDesktopUpdateState,
   isDesktopShell,
@@ -48,7 +38,6 @@ import {
   type BackendReachabilityDetail,
 } from "./ServerList";
 import type { SinglePlayerModal } from "./SinglePlayerModal";
-import { lastUserMeResponse } from "./UserMeBroadcast";
 import { UsernameInput } from "./UsernameInput";
 import {
   calculateServerTimeOffset,
@@ -349,9 +338,6 @@ export class GameModeSelector extends LitElement {
   @state() private lobbies: PublicGames | null = null;
   @state() private inputValid: boolean = true;
   @state() private desktopUpdateState: DesktopUpdateState | null = null;
-  @state() private viewerTrusted: boolean = false;
-  @state() private viewerSignedIn: boolean = false;
-  @state() private showTrustRequired: boolean = false;
   @state() private desktopSessionState: DesktopSessionState | null = null;
   // The DEBOUNCED outage signal, not the raw per-attempt one: see
   // multiplayerAllowedForBackend for why one missed heartbeat must not dim
@@ -457,10 +443,6 @@ export class GameModeSelector extends LitElement {
       "desktop-update-state",
       this.onDesktopUpdateState,
     );
-    document.addEventListener("userMeResponse", this.onUserMe);
-    // play-page renders this after Main may already have broadcast.
-    const last = lastUserMeResponse();
-    if (last !== null) this.applyUserMe(last.response);
     if (isDesktopShell()) {
       // Seed BOTH from their current values. This element is rendered by
       // <play-page> on a Lit microtask, so it cannot exist yet when the status
@@ -510,7 +492,6 @@ export class GameModeSelector extends LitElement {
       "desktop-update-state",
       this.onDesktopUpdateState,
     );
-    document.removeEventListener("userMeResponse", this.onUserMe);
     document.removeEventListener(
       "desktop-session-state",
       this.onDesktopSessionState,
@@ -543,22 +524,6 @@ export class GameModeSelector extends LitElement {
   private onDesktopUpdateState = (e: Event) => {
     this.desktopUpdateState = (e as CustomEvent<DesktopUpdateState>).detail;
   };
-
-  private onUserMe = (e: Event) => {
-    this.applyUserMe((e as CustomEvent<UserMeResponse | false>).detail);
-  };
-
-  private applyUserMe(me: UserMeResponse | false): void {
-    this.viewerSignedIn = viewerIsSignedIn(me);
-    this.viewerTrusted = viewerIsTrusted(me);
-    // A CrazyGames sign-in surfaces as a userMeResponse without a linked
-    // identity, so re-read the SDK profile alongside it.
-    if (crazyGamesSDK.isOnCrazyGames()) {
-      void crazyGamesSDK.getUserProfile().then((user) => {
-        if (user !== null) this.viewerSignedIn = true;
-      });
-    }
-  }
 
   private onDesktopSessionState = (e: Event) => {
     const next = (e as CustomEvent<DesktopSessionState>).detail;
@@ -769,19 +734,7 @@ export class GameModeSelector extends LitElement {
             SECONDARY_ACTION,
             undefined,
             true,
-            // Ranked admits trusted accounts only. A trusted viewer gets the
-            // green open lock; anyone else meets the red locks and the trust
-            // popup inside the ranked modal. Small, so it clears the label on
-            // narrow (mobile) buttons.
-            this.viewerTrusted
-              ? trustLockIcon(true, {
-                  tooltipTitle: translateText(
-                    "mode_selector.ranked_trust_tooltip_title",
-                  ),
-                  position: "top-1 right-1",
-                  small: true,
-                })
-              : nothing,
+            nothing,
             ACTION_ICONS.ranked,
           )}
         </div>
@@ -820,13 +773,6 @@ export class GameModeSelector extends LitElement {
             : nothing}
           ${this.renderUpcomingHeading()}
         </section>
-
-        ${this.showTrustRequired
-          ? trustRequiredDialog(
-              this.viewerSignedIn,
-              () => (this.showTrustRequired = false),
-            )
-          : nothing}
       </div>
     `;
   }
@@ -1060,7 +1006,6 @@ export class GameModeSelector extends LitElement {
         this.desktopUpdateState,
         this.desktopSessionState,
       ),
-      viewerTrusted: this.viewerTrusted,
       onClick: () => this.validateAndJoin(lobby),
     });
   }
@@ -1068,11 +1013,6 @@ export class GameModeSelector extends LitElement {
   private validateAndJoin(lobby: PublicGameInfo) {
     if (this.blockedFromLobbyJoin()) return;
     if (!this.validateUsername()) return;
-    if (!canJoinTrustedLobby(lobby, this.viewerTrusted)) {
-      this.showTrustRequired = true;
-      return;
-    }
-
     this.dispatchEvent(
       new CustomEvent("join-lobby", {
         detail: {

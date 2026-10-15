@@ -1,104 +1,10 @@
 import { GameMapType } from "@openfront/engine-api/game/GameTypes";
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import { PublicGameInfo } from "@openfront/shared/WireSchemas";
 import { html, nothing, svg, TemplateResult } from "lit";
-import { responseHasLinkedIdentity } from "../AccountIdentity";
-import { crazyGamesSDK } from "../CrazyGamesSDK";
 import { terrainMapFileLoader } from "../TerrainMapFileLoader";
 import { notableLobbySettings } from "../utilities/LobbySettingsSummary";
 import { getMapName, getModifierLabels, translateText } from "../Utils";
-import "./ConfirmDialog";
 import { hideFloatingTooltip, showFloatingTooltip } from "./FloatingTooltip";
-
-/**
- * Whether the signed-in player may join trusted-only lobbies, from the
- * userMeResponse Main dispatches. Logged out, an API without the field, and a
- * failed computation (null) all read as untrusted.
- */
-export function viewerIsTrusted(userMe: UserMeResponse | false): boolean {
-  return userMe !== false && userMe.player.trustTier === "trusted";
-}
-
-/**
- * Whether the viewer has an account to become trusted on. A guest session
- * still resolves to a UserMeResponse, so a linked identity (Discord, Google,
- * Steam, email) is what counts. Callers on CrazyGames must OR in the SDK
- * profile themselves; it isn't on the API response.
- */
-export function viewerIsSignedIn(userMe: UserMeResponse | false): boolean {
-  return responseHasLinkedIdentity(userMe);
-}
-
-/** Whether the viewer may join `lobby`: it is open, or they are trusted. */
-export function canJoinTrustedLobby(
-  lobby: PublicGameInfo,
-  viewerTrusted: boolean,
-): boolean {
-  return lobby.gameConfig?.trusted !== true || viewerTrusted;
-}
-
-/** Where the trust popup is shown: a trusted-only lobby, or ranked. */
-export type TrustRequiredContext = "lobby" | "ranked";
-
-const TRUST_REQUIRED_KEYS: Record<
-  TrustRequiredContext,
-  {
-    title: string;
-    body: string;
-    bodyCrazyGames: string;
-    bodySignedOut: string;
-    bodySignedOutCrazyGames: string;
-  }
-> = {
-  lobby: {
-    title: "public_lobby.trust_required_title",
-    body: "public_lobby.trust_required_body",
-    bodyCrazyGames: "public_lobby.trust_required_body_crazygames",
-    bodySignedOut: "public_lobby.trust_required_body_signed_out",
-    bodySignedOutCrazyGames:
-      "public_lobby.trust_required_body_signed_out_crazygames",
-  },
-  ranked: {
-    title: "mode_selector.ranked_trust_required_title",
-    body: "mode_selector.ranked_trust_required_body",
-    bodyCrazyGames: "mode_selector.ranked_trust_required_body_crazygames",
-    bodySignedOut: "mode_selector.ranked_trust_required_body_signed_out",
-    bodySignedOutCrazyGames:
-      "mode_selector.ranked_trust_required_body_signed_out_crazygames",
-  },
-};
-
-/**
- * Popup shown instead of attempting to join a trusted-only lobby, or ranked,
- * when the viewer can't get in (the server would refuse them anyway). Tells
- * them how to become trusted rather than letting the join fail: a signed-out
- * viewer is told to sign in first, since trust only attaches to an account.
- * CrazyGames has no purchases, so its variants only suggest playing more games.
- */
-export function trustRequiredDialog(
-  signedIn: boolean,
-  onClose: () => void,
-  context: TrustRequiredContext = "lobby",
-): TemplateResult {
-  const keys = TRUST_REQUIRED_KEYS[context];
-  const body = crazyGamesSDK.isOnCrazyGames()
-    ? signedIn
-      ? keys.bodyCrazyGames
-      : keys.bodySignedOutCrazyGames
-    : signedIn
-      ? keys.body
-      : keys.bodySignedOut;
-  return html`<confirm-dialog
-    .heading=${translateText(keys.title)}
-    .message=${translateText(body)}
-    variant="warning"
-    .showClose=${true}
-    .buttons=${"confirmOnly"}
-    .confirmText=${translateText("public_lobby.trust_required_ok")}
-    @cancel=${onClose}
-    @confirm=${onClose}
-  ></confirm-dialog>`;
-}
 
 /**
  * Aspect ratios keyed by map, loaded lazily from each map's manifest. Shared
@@ -151,8 +57,6 @@ export interface LobbyCardOptions {
    * `disabled` would swallow the click (it also sets pointer-events-none).
    */
   blocked?: boolean;
-  /** Only matters for a trusted-only lobby, which shows an open or closed lock. */
-  viewerTrusted?: boolean;
   /** Card height; defaults to the homepage's fill-the-grid-cell sizing. */
   heightClass?: string;
 }
@@ -190,7 +94,6 @@ export function lobbyCard({
   onClick,
   disabled = false,
   blocked = false,
-  viewerTrusted = false,
   heightClass = "h-44 sm:h-full",
 }: LobbyCardOptions): TemplateResult {
   const mapType = lobby.gameConfig!.gameMap as GameMapType;
@@ -214,7 +117,6 @@ export function lobbyCard({
     lobby.gameConfig?.publicGameModifiers,
     lobby.gameConfig?.doomsdayClock?.speed,
   ).sort((a, b) => b.length - a.length);
-  const trustedOnly = lobby.gameConfig?.trusted === true;
   const custom = lobby.custom === true;
 
   const state = disabled
@@ -261,12 +163,9 @@ export function lobbyCard({
       </div>
 
       <div
-        class="absolute inset-x-0 bottom-0 flex flex-col bg-black/65 px-3 py-2 ${trustedOnly &&
-        custom
-          ? "pr-20"
-          : trustedOnly || custom
-            ? "pr-10"
-            : ""}"
+        class="absolute inset-x-0 bottom-0 flex flex-col bg-black/65 px-3 py-2 ${custom
+          ? "pr-10"
+          : ""}"
       >
         <span
           class="${BADGE} absolute bottom-full right-2 mb-1 flex items-center gap-1 px-2 py-0.5 text-xs font-bold tabular-nums tracking-widest"
@@ -283,8 +182,7 @@ export function lobbyCard({
             />
           </svg>
         </span>
-        ${trustedOnly ? trustLockIcon(viewerTrusted) : nothing}
-        ${custom ? customInfoIcon(lobby, trustedOnly) : nothing}
+        ${custom ? customInfoIcon(lobby) : nothing}
         ${title
           ? html`<p
               class="text-sm font-bold leading-tight tracking-wider @[20rem]:text-base"
@@ -303,10 +201,7 @@ export function lobbyCard({
  * player made it and the settings it runs with, since a custom lobby in a
  * public queue otherwise looks like a scheduled game.
  */
-function customInfoIcon(
-  lobby: PublicGameInfo,
-  besideLock: boolean,
-): TemplateResult {
+function customInfoIcon(lobby: PublicGameInfo): TemplateResult {
   const c = lobby.gameConfig;
   const enabled = translateText("common.enabled");
   const lines: string[] = [];
@@ -341,9 +236,7 @@ function customInfoIcon(
   const show = (e: Event) =>
     showFloatingTooltip(e.currentTarget as HTMLElement, tooltip);
   return html`<span
-    class="${BADGE} absolute bottom-2 ${besideLock
-      ? "right-11"
-      : "right-2"} flex items-center px-1.5 py-1 text-orange-400"
+    class="${BADGE} absolute bottom-2 right-2 flex items-center px-1.5 py-1 text-orange-400"
     aria-label=${title}
     data-custom-info
     @mouseenter=${show}

@@ -198,11 +198,13 @@ describe("GameServer - pool routing (GameConfig.pool)", () => {
     expect(redirectsOf(client)).toEqual([]);
   });
 
-  it("refuses an untrusted client before routing them", () => {
+  it("routes an untrusted client when the pool assigns another member", () => {
     const game = makeGame({ trusted: true });
     const client = makeClient(C1, "p1", MOVES);
-    expect(game.joinClient(client)).toBe("not_trusted");
-    expect(redirectsOf(client)).toEqual([]);
+    expect(game.joinClient(client)).toBe("redirected");
+    expect(redirectsOf(client)).toEqual([
+      { type: "redirect", gameID: SIBLINGS[2] },
+    ]);
   });
 
   it("keeps a kicked client kicked rather than routing them", () => {

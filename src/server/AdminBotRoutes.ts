@@ -265,6 +265,9 @@ export function registerAdminBotRoutes(opts: {
   // the bot doesn't need to know the sharding. nginx (and the vite dev proxy)
   // randomly route here to spread new games across workers.
   app.post("/api/adminbot/create_game", requireAdminBotKey, (req, res) => {
+    if (gm.isMaintenanceMode()) {
+      return res.status(503).json({ error: "maintenance_mode" });
+    }
     const parsed = parseCreateGameRequest(req.body);
     if (!parsed.ok) return res.status(parsed.status).json(parsed.body);
     const request = parsed.value;
@@ -303,6 +306,9 @@ export function registerAdminBotRoutes(opts: {
   // `pool` stays create-time only — there is no patch route and ConfigPatch
   // does not copy it — so a pool can never change after its members exist.
   app.post("/api/adminbot/create_pool", requireAdminBotKey, (req, res) => {
+    if (gm.isMaintenanceMode()) {
+      return res.status(503).json({ error: "maintenance_mode" });
+    }
     // A pool of one would never redirect anyone; refuse rather than create a
     // lobby that merely looks pooled.
     const countParsed = z

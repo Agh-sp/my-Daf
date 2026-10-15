@@ -39,7 +39,7 @@ function publicLobbyGameConfig(gc: GameConfig): GameConfig {
 
 export class WorkerLobbyService {
   private readonly lobbiesWss: WebSocketServer;
-  private readonly globalChat = new GlobalChatRoom();
+  private readonly globalChat: GlobalChatRoom;
   // Keyed by socket, valued by the platform the client named in the
   // upgrade URL's ?platform= (see LobbySocket.ts), for the per-platform gauge.
   private readonly lobbyClients: Map<WebSocket, ClientPlatform | "unknown"> =
@@ -65,7 +65,13 @@ export class WorkerLobbyService {
     private readonly gameWss: WebSocketServer,
     private readonly gm: GameManager,
     private readonly log: typeof logger,
+    persistReport: (report: GlobalChatReport) => void = () => {},
   ) {
+    this.globalChat = new GlobalChatRoom(
+      undefined,
+      undefined,
+      persistReport,
+    );
     this.lobbiesWss = new WebSocketServer({
       noServer: true,
       maxPayload: 256 * 1024,

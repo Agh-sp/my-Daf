@@ -1,10 +1,16 @@
-import { TokenPayload, TokenPayloadSchema } from "@openfront/shared/ApiSchemas";
+import {
+  TokenPayload,
+  TokenPayloadSchema,
+  UserMeResponse,
+  UserMeResponseSchema,
+} from "@openfront/shared/ApiSchemas";
 import { base64urlToUuid } from "@openfront/shared/Base64";
 import { decodeJwt } from "jose";
 import { UserSettings } from "src/client/UserSettings";
 import { z } from "zod";
 import { getApiBase, getAudience } from "./Api";
 import { ClientEnv } from "./ClientEnv";
+import { localAccountApiUrl } from "./LocalAccountApi";
 import { crazyGamesSDK } from "./CrazyGamesSDK";
 import type { DesktopSessionState, SessionFailureKind } from "./DesktopShell";
 import { desktopLinkGate, isDesktopShell } from "./DesktopShell";
@@ -16,6 +22,11 @@ import { generateCryptoRandomUUID, translateText } from "./Utils";
 export type UserAuth = { jwt: string; claims: TokenPayload } | false;
 
 const PERSISTENT_ID_KEY = "player_persistent_id";
+const LOCAL_ACCOUNT_TOKEN_KEY = "local_account_access_token";
+
+export function getLocalAccountAccessToken(): string | null {
+  return localStorage.getItem(LOCAL_ACCOUNT_TOKEN_KEY);
+}
 
 let __jwt: string | null = null;
 let __refreshPromise: Promise<void> | null = null;
@@ -273,7 +284,54 @@ export async function getAuthHeader(): Promise<string> {
   return `Bearer ${jwt}`;
 }
 
+export async function loginLocalAccount(
+  username: string,
+  password: string,
+): Promise<UserMeResponse> {
+  const response = await fetch(localAccountApiUrl("/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 403
+        ? "This account is banned"
+        : "Invalid username or password",
+    );
+  }
+  const parsed = z
+    .object({
+      token: z.string().min(1),
+      expiresIn: z.number().int().positive(),
+      user: UserMeResponseSchema,
+    })
+    .safeParse(await response.json());
+  if (!parsed.success) {
+    throw new Error("Invalid local account login response");
+  }
+  __jwt = parsed.data.token;
+  __expiresAt = Date.now() + parsed.data.expiresIn * 1000;
+  localStorage.setItem(LOCAL_ACCOUNT_TOKEN_KEY, parsed.data.token);
+  localStorage.setItem(PERSISTENT_ID_KEY, parsed.data.user.player.publicId);
+  UserSettings.setPlayerId(parsed.data.user.player.publicId);
+  settlePendingSession();
+  document.dispatchEvent(
+    new CustomEvent("local-account-signed-in", { bubbles: true }),
+  );
+  return parsed.data.user;
+}
+
 export async function logOut(allSessions: boolean = false): Promise<boolean> {
+  try {
+    if (__jwt !== null && decodeJwt(__jwt).provider === "local") {
+      clearLocalSession();
+      return true;
+    }
+  } catch {
+    // An undecodable token follows the ordinary server logout path.
+  }
   try {
     const response = await fetch(
       getApiBase() + (allSessions ? "/auth/revoke" : "/auth/logout"),
@@ -320,6 +378,7 @@ export function clearLocalSession(): void {
   const hadSession = __jwt !== null;
   __jwt = null;
   localStorage.removeItem(PERSISTENT_ID_KEY);
+  localStorage.removeItem(LOCAL_ACCOUNT_TOKEN_KEY);
   // Switch cosmetics back to the logged-out scope. The player's own
   // selections stay stored under their publicId and are restored on the
   // next login (#4955).
@@ -486,6 +545,25 @@ async function refreshJwt(): Promise<void> {
 }
 
 async function doRefreshJwt(): Promise<void> {
+  const localToken = localStorage.getItem(LOCAL_ACCOUNT_TOKEN_KEY);
+  if (localToken) {
+    try {
+      const payload = decodeJwt(localToken);
+      if (
+        payload.provider === "local" &&
+        typeof payload.exp === "number" &&
+        payload.exp * 1000 > Date.now()
+      ) {
+        __jwt = localToken;
+        __expiresAt = payload.exp * 1000;
+        return;
+      }
+    } catch (error) {
+      console.warn("Stored local account session is invalid", error);
+    }
+    localStorage.removeItem(LOCAL_ACCOUNT_TOKEN_KEY);
+  }
+
   if (steamSDK.isOnSteam()) {
     const result = await steamSDK.getTicket();
     if (result.ok) {

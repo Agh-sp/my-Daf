@@ -6,16 +6,74 @@ import { ensureServerList } from "./ServerList";
 import { translateText as baseTranslateText } from "./Utils";
 
 const ADMIN_TEXT_FA: Record<string, string> = {
+  "admin_panel.brand_name": "دفاع خاورمیانه",
   "admin_panel.action_failed": "انجام عملیات ناموفق بود (HTTP {status}).",
+  "admin_panel.accounts": "حساب‌های ثبت‌شده",
+  "admin_panel.account_password_required": "رمز عبور باید حداقل ۸ نویسه باشد.",
   "admin_panel.active_games": "بازی‌های فعال",
+  "admin_panel.active": "فعال",
+  "admin_panel.add_product": "افزودن محصول",
   "admin_panel.actions": "عملیات",
   "admin_panel.admin_session": "نشست مدیر فعال است",
   "admin_panel.authenticating": "در حال ورود…",
   "admin_panel.ban_integration_note":
     "برای اعمال بن سراسری باید سرویس حساب کاربری هنگام ورود به هر سرور، بن را بررسی کند. این سرور هنوز API پایدار بن ندارد؛ بنابراین کیک محلی را به‌عنوان بن سراسری نمایش نمی‌دهیم.",
   "admin_panel.bans": "بن‌ها",
+  "admin_panel.ban": "مسدودسازی",
+  "admin_panel.unban": "رفع مسدودی",
+  "admin_panel.ban_confirm":
+    "این حساب در همهٔ سرورهای بازی این سایت مسدود و از بازی‌های فعال خارج می‌شود. ادامه می‌دهید؟",
+  "admin_panel.unban_confirm":
+    "مسدودی این حساب در همهٔ workerهای بازی برداشته شود؟",
+  "admin_panel.bans_note":
+    "این بخش بن‌های حساب‌های بازی که خارج از حساب‌های محلی ساخته شده‌اند را نگه می‌دارد.",
+  "admin_panel.banned": "مسدود",
+  "admin_panel.banned_until": "مسدود تا {time}",
+  "admin_panel.cancel": "انصراف",
+  "admin_panel.create_account": "ساخت حساب",
+  "admin_panel.created": "تاریخ ساخت",
+  "admin_panel.delete": "حذف",
+  "admin_panel.edit": "ویرایش",
+  "admin_panel.edit_account": "ویرایش حساب",
+  "admin_panel.edit_product": "ویرایش محصول",
+  "admin_panel.hidden": "مخفی",
+  "admin_panel.local_data_note":
+    "اطلاعات حساب‌ها و رمزهای هش‌شده در SQLite روی دیسک سرور ذخیره می‌شوند. رمز خام هرگز ذخیره یا نمایش داده نمی‌شود.",
+  "admin_panel.no_accounts": "حسابی ساخته نشده است.",
+  "admin_panel.download_export": "دانلود اطلاعات کاربران و محصولات",
+  "admin_panel.category": "دسته‌بندی محصول",
+  "admin_panel.category_name": "نام دسته‌بندی",
+  "admin_panel.add_category": "ساخت دسته",
+  "admin_panel.edit_category": "ویرایش دسته",
+  "admin_panel.all_categories": "بدون دسته‌بندی",
+  "admin_panel.inventory_count": "محصولات تحویلی: {count}",
+  "admin_panel.grant_product": "تحویل محصول",
+  "admin_panel.choose_product": "شماره محصول را وارد کنید:",
+  "admin_panel.no_active_products": "ابتدا یک محصول فعال بسازید.",
+  "admin_panel.system_logs_unavailable": "گزارش systemd در دسترس نیست: {reason}",
+  "admin_panel.system_logs": "گزارش Linux / systemd",
+  "admin_panel.app_logs": "گزارش برنامه",
+  "admin_panel.backup_sensitive_note":
+    "فایل پشتیبان شامل هش و salt رمزها است؛ آن را مانند اطلاعات محرمانه نگه دارید.",
+  "admin_panel.no_products": "محصولی ساخته نشده است.",
+  "admin_panel.password_optional": "رمز تازه (اختیاری)",
+  "admin_panel.phone": "شماره تماس",
+  "admin_panel.phone_optional": "شماره تماس (اختیاری)",
+  "admin_panel.product_active": "نمایش محصول به بازیکنان",
+  "admin_panel.product_description": "توضیحات",
+  "admin_panel.product_image_invalid":
+    "تصویر باید PNG، JPEG یا WebP و حداکثر ۳ مگابایت باشد.",
+  "admin_panel.product_image_note":
+    "تصویرها روی دیسک همین سرور ذخیره می‌شوند. لینک پرداخت HTTPS باز می‌شود؛ تأیید پرداخت یا تحویل خودکار سفارش از این کاتالوگ انجام نمی‌شود.",
+  "admin_panel.product_name": "نام محصول",
+  "admin_panel.product_price": "قیمت",
+  "admin_panel.product_price_invalid": "قیمت باید عدد صحیح مثبت باشد.",
+  "admin_panel.products": "محصولات فروشگاه",
+  "admin_panel.remove_image": "حذف تصویر",
+  "admin_panel.save_changes": "ذخیره تغییرات",
   "admin_panel.eyebrow": "مدیریت سرور",
   "admin_panel.game": "بازی",
+  "admin_panel.games": "فهرست بازی‌ها",
   "admin_panel.health_subtitle": "وضعیت زندهٔ سرورهای بازی",
   "admin_panel.healthy": "سالم",
   "admin_panel.in_game": "آنلاین",
@@ -24,6 +82,8 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.kick": "کیک",
   "admin_panel.last_updated": "به‌روزرسانی: {time}",
   "admin_panel.load_average": "میانگین بار",
+  "admin_panel.logs": "گزارش رخدادها",
+  "admin_panel.logs_unavailable": "بارگیری گزارش رخدادهای سرور ناموفق بود.",
   "admin_panel.load_failed": "بارگیری پنل مدیریت ناموفق بود.",
   "admin_panel.login_failed":
     "ورود ناموفق بود. اتصال را بررسی و دوباره تلاش کنید.",
@@ -34,6 +94,21 @@ const ADMIN_TEXT_FA: Record<string, string> = {
     "برای مدیریت کاربران آنلاین و مشاهدهٔ وضعیت سرورها وارد شوید.",
   "admin_panel.login_title": "ورود مدیر",
   "admin_panel.memory_rss": "حافظهٔ سرور",
+  "admin_panel.maintenance": "توقف بازی‌ها برای تعمیرات",
+  "admin_panel.maintenance_enabled":
+    "حالت تعمیرات فعال است؛ بازی‌های جاری متوقف شده‌اند.",
+  "admin_panel.maintenance_start_confirm":
+    "این کار همهٔ بازی‌های جاری را متوقف می‌کند و تا خاموش‌کردن حالت تعمیرات، بازی جدیدی پذیرفته نمی‌شود. ادامه می‌دهید؟",
+  "admin_panel.maintenance_stop_confirm":
+    "حالت تعمیرات خاموش شود و بازی‌ها دوباره پذیرفته شوند؟",
+  "admin_panel.maintenance_partial":
+    "تغییر حالت تعمیرات روی همهٔ workerها کامل نشد؛ وضعیت هر worker را بررسی کنید.",
+  "admin_panel.maintenance_status": "وضعیت توقف بازی‌ها",
+  "admin_panel.maintenance_resume": "ادامهٔ پذیرش بازی",
+  "admin_panel.no_logs": "گزارشی از رخدادهای این پردازه ثبت نشده است.",
+  "admin_panel.no_bans": "حسابی از ورود به بازی‌ها مسدود نشده است.",
+  "admin_panel.no_games": "بازی فعالی برای نمایش وجود ندارد.",
+  "admin_panel.view_players": "بازیکنان",
   "admin_panel.no_players": "کاربر آنلاینی پیدا نشد.",
   "admin_panel.navigation": "مدیریت",
   "admin_panel.online_user_count": "{count} کاربر آنلاین",
@@ -43,6 +118,15 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.player_not_found": "بازیکن دیگر آنلاین نیست.",
   "admin_panel.platform": "پلتفرم",
   "admin_panel.password": "رمز عبور",
+  "admin_panel.payment_url": "لینک پرداخت (HTTPS)",
+  "admin_panel.temporary_ban": "بن موقت",
+  "admin_panel.temporary_ban_prompt":
+    "مدت مسدودسازی «{username}» به ساعت (۱ تا ۸۷۶۰):",
+  "admin_panel.temporary_ban_invalid":
+    "مدت باید عدد صحیحی بین ۱ تا ۸۷۶۰ ساعت باشد.",
+  "admin_panel.warn_prompt": "متن اخطار برای «{username}»:",
+  "admin_panel.warn": "اخطار",
+  "admin_panel.warning_count": "اخطارها: {count}",
   "admin_panel.no_reports": "گزارشی برای نمایش وجود ندارد.",
   "admin_panel.report_reason_abusive_language": "فحاشی یا الفاظ نامناسب",
   "admin_panel.report_reason_harassment": "آزار و تهدید",
@@ -96,6 +180,7 @@ const translateText = (
 
 type AdminPlayer = {
   clientID: string;
+  accountKey: string;
   username: string;
   spectator: boolean;
   platform: string;
@@ -115,15 +200,34 @@ type AdminWorkerOverview = {
   uptimeSeconds: number;
   loadAverage: number[];
   memory: { rss: number; heapUsed: number; heapTotal: number };
+  maintenanceMode: boolean;
   games: AdminGame[];
 };
 
+const AdminLogSchema = z.object({
+  timestamp: z.string(),
+  level: z.string(),
+  message: z.string(),
+  metadata: z.record(z.string(), z.unknown()),
+});
+type AdminLog = z.infer<typeof AdminLogSchema> & { workerId: number };
+
 const AdminChatReportSchema = z.object({
   id: z.string(),
-  messageId: z.string(),
-  reportedBy: z.object({ publicId: z.string(), username: z.string() }),
-  reported: z.object({ publicId: z.string(), username: z.string() }),
-  message: z.string(),
+  messageId: z.string().optional(),
+  source: z.enum(["chat", "game"]).optional(),
+  gameID: z.string().optional(),
+  reportedBy: z.object({
+    publicId: z.string().optional(),
+    clientID: z.string().optional(),
+    username: z.string(),
+  }),
+  reported: z.object({
+    publicId: z.string().optional(),
+    clientID: z.string().optional(),
+    username: z.string(),
+  }),
+  message: z.string().optional(),
   reason: z.enum(["abusive_language", "harassment", "spam", "other"]),
   createdAt: z.number(),
 });
@@ -132,13 +236,84 @@ type AdminChatReport = z.infer<typeof AdminChatReportSchema> & {
   workerId: number;
 };
 
-type AdminTab = "overview" | "users" | "bans" | "reports";
+const ManagedAccountSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  phone: z.string().nullable(),
+  banned: z.boolean(),
+  bannedUntil: z.number().nullable(),
+  warningCount: z.number().int().nonnegative(),
+  inventoryCount: z.number().int().nonnegative().optional().default(0),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+type ManagedAccount = z.infer<typeof ManagedAccountSchema>;
+
+const ManagedProductSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  price: z.number(),
+  currency: z.string(),
+  paymentUrl: z.string().nullable(),
+  categoryId: z.string().nullable().optional(),
+  categoryName: z.string().nullable().optional(),
+  imageMime: z.string().nullable(),
+  imageUrl: z.string().nullable().optional(),
+  active: z.boolean(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+type ManagedProduct = z.infer<typeof ManagedProductSchema>;
+
+const ManagedCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+type ManagedCategory = z.infer<typeof ManagedCategorySchema>;
+
+const AdminTab =
+  z.enum([
+    "overview",
+    "games",
+    "users",
+    "accounts",
+    "products",
+    "bans",
+    "reports",
+    "logs",
+  ]);
+type AdminTab = z.infer<typeof AdminTab>;
 const SESSION_KEY = "openfront_admin_session";
 
 @customElement("admin-panel")
 export class AdminPanel extends LitElement {
   @state() private overviews: AdminWorkerOverview[] = [];
   @state() private reports: AdminChatReport[] = [];
+  @state() private logs: AdminLog[] = [];
+  @state() private systemLogsNotice: string | null = null;
+  @state() private accountKeys: string[] = [];
+  @state() private managedAccounts: ManagedAccount[] = [];
+  @state() private managedProducts: ManagedProduct[] = [];
+  @state() private managedCategories: ManagedCategory[] = [];
+  @state() private accountEditId: string | null = null;
+  @state() private accountDraftUsername = "";
+  @state() private accountDraftPassword = "";
+  @state() private accountDraftPhone = "";
+  @state() private productEditId: string | null = null;
+  @state() private productDraftName = "";
+  @state() private productDraftDescription = "";
+  @state() private productDraftPrice = "";
+  @state() private productDraftCurrency = "تومان";
+  @state() private productDraftPaymentUrl = "";
+  @state() private productDraftCategoryId = "";
+  @state() private categoryDraftName = "";
+  @state() private categoryEditId: string | null = null;
+  @state() private productDraftActive = true;
+  @state() private productDraftImage: string | null | undefined;
+  @state() private productDraftImageUrl: string | null = null;
   @state() private loading = false;
   @state() private submitting = false;
   @state() private error: string | null = null;
@@ -275,11 +450,22 @@ export class AdminPanel extends LitElement {
         }),
       );
       this.overviews = results;
-      this.reports = await this.fetchReports(base, workerCount, token);
+      const [reports, logs, accountKeys, localData] = await Promise.all([
+        this.fetchReports(base, workerCount, token),
+        this.fetchLogs(base, workerCount, token),
+        this.fetchBans(base, workerCount, token),
+        this.fetchLocalAdminData(base, token),
+      ]);
+      this.reports = reports;
+      this.logs = logs;
+      this.accountKeys = accountKeys;
+      this.managedAccounts = localData.accounts;
+      this.managedProducts = localData.products;
+      this.managedCategories = localData.categories;
       this.loggedIn = true;
       this.lastUpdated = Date.now();
       if (this.active) {
-        this.refreshTimer ??= setInterval(() => void this.refresh(), 15_000);
+        this.refreshTimer ??= setInterval(() => void this.refresh(), 5_000);
       }
     } catch (error) {
       this.error =
@@ -288,6 +474,11 @@ export class AdminPanel extends LitElement {
           : translateText("admin_panel.load_failed");
       this.overviews = [];
       this.reports = [];
+      this.logs = [];
+      this.accountKeys = [];
+      this.managedAccounts = [];
+      this.managedProducts = [];
+      this.managedCategories = [];
       this.stopRefresh();
     } finally {
       this.loading = false;
@@ -334,6 +525,249 @@ export class AdminPanel extends LitElement {
       }),
     );
     return perWorker.flat().sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  private async fetchLogs(
+    base: string,
+    workerCount: number,
+    token: string,
+  ): Promise<AdminLog[]> {
+    const perWorker = await Promise.all(
+      Array.from({ length: workerCount }, async (_, workerId) => {
+        const response = await fetch(
+          `${base}/w${workerId}/api/admin/logs?limit=200`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (response.status === 401) {
+          sessionStorage.removeItem(SESSION_KEY);
+          this.loggedIn = false;
+          throw new Error(translateText("admin_panel.session_expired"));
+        }
+        if (!response.ok) {
+          throw new Error(
+            translateText("admin_panel.worker_failed", {
+              worker: workerId,
+              status: response.status,
+            }),
+          );
+        }
+        const parsed = z
+          .object({ logs: z.array(AdminLogSchema) })
+          .safeParse(await response.json());
+        if (!parsed.success) {
+          throw new Error(translateText("admin_panel.logs_unavailable"));
+        }
+        return parsed.data.logs.map((entry) => ({ ...entry, workerId }));
+      }),
+    );
+    const systemResponse = await fetch(
+      `${base}/w0/api/admin/system-logs`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (systemResponse.status === 401) {
+      sessionStorage.removeItem(SESSION_KEY);
+      this.loggedIn = false;
+      throw new Error(translateText("admin_panel.session_expired"));
+    }
+    if (!systemResponse.ok) {
+      throw new Error(
+        translateText("admin_panel.worker_failed", {
+          worker: 0,
+          status: systemResponse.status,
+        }),
+      );
+    }
+    const systemData = z
+      .object({
+        available: z.boolean(),
+        reason: z.string().nullable(),
+        logs: z.array(AdminLogSchema),
+      })
+      .safeParse(await systemResponse.json());
+    if (!systemData.success) {
+      throw new Error(translateText("admin_panel.logs_unavailable"));
+    }
+    this.systemLogsNotice = systemData.data.available
+      ? null
+      : systemData.data.reason;
+    return [
+      ...perWorker.flat(),
+      ...systemData.data.logs.map((entry) => ({
+        ...entry,
+        level: `systemd/${entry.level}`,
+        workerId: 0,
+      })),
+    ]
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }
+
+  private async fetchBans(
+    base: string,
+    workerCount: number,
+    token: string,
+  ): Promise<string[]> {
+    const perWorker = await Promise.all(
+      Array.from({ length: workerCount }, async (_, workerId) => {
+        const response = await fetch(`${base}/w${workerId}/api/admin/bans`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.status === 401) {
+          sessionStorage.removeItem(SESSION_KEY);
+          this.loggedIn = false;
+          throw new Error(translateText("admin_panel.session_expired"));
+        }
+        if (!response.ok) {
+          throw new Error(
+            translateText("admin_panel.worker_failed", {
+              worker: workerId,
+              status: response.status,
+            }),
+          );
+        }
+        const parsed = z
+          .object({ accountKeys: z.array(z.string().regex(/^[0-9a-f]{64}$/)) })
+          .safeParse(await response.json());
+        if (!parsed.success) {
+          throw new Error(translateText("admin_panel.load_failed"));
+        }
+        return parsed.data.accountKeys;
+      }),
+    );
+    return [...new Set(perWorker.flat())];
+  }
+
+  private async fetchLocalAdminData(
+    base: string,
+    token: string,
+  ): Promise<{
+    accounts: ManagedAccount[];
+    products: ManagedProduct[];
+    categories: ManagedCategory[];
+  }> {
+    const headers = { Authorization: `Bearer ${token}` };
+    const [accountsResponse, productsResponse] = await Promise.all([
+      fetch(`${base}/w0/api/admin/accounts`, { headers }),
+      fetch(`${base}/w0/api/admin/products`, { headers }),
+    ]);
+    for (const response of [accountsResponse, productsResponse]) {
+      if (response.status === 401) {
+        sessionStorage.removeItem(SESSION_KEY);
+        this.loggedIn = false;
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.worker_failed", {
+            worker: 0,
+            status: response.status,
+          }),
+        );
+      }
+    }
+    const accounts = z
+      .object({ accounts: z.array(ManagedAccountSchema) })
+      .safeParse(await accountsResponse.json());
+    const products = z
+      .object({
+        products: z.array(ManagedProductSchema),
+        categories: z.array(ManagedCategorySchema).default([]),
+      })
+      .safeParse(await productsResponse.json());
+    if (!accounts.success || !products.success) {
+      throw new Error(translateText("admin_panel.load_failed"));
+    }
+    return {
+      accounts: accounts.data.accounts,
+      products: products.data.products,
+      categories: products.data.categories,
+    };
+  }
+
+  private async setAccountBan(accountKey: string, banned: boolean) {
+    const messageKey = banned
+      ? "admin_panel.ban_confirm"
+      : "admin_panel.unban_confirm";
+    if (!window.confirm(translateText(messageKey))) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) {
+      this.loggedIn = false;
+      this.error = translateText("admin_panel.session_expired");
+      return;
+    }
+    try {
+      const { base, workerCount } = await this.apiBase();
+      const endpoint = banned ? "ban" : "unban";
+      const responses = await Promise.all(
+        Array.from({ length: workerCount }, (_, workerId) =>
+          fetch(`${base}/w${workerId}/api/admin/${endpoint}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ accountKey }),
+          }),
+        ),
+      );
+      if (responses.some((response) => response.status === 401)) {
+        sessionStorage.removeItem(SESSION_KEY);
+        this.loggedIn = false;
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      if (responses.some((response) => !response.ok)) {
+        throw new Error(translateText("admin_panel.maintenance_partial"));
+      }
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.action_failed", { status: "?" });
+      await this.refresh();
+    }
+  }
+
+  private async setMaintenanceMode(enabled: boolean) {
+    const promptKey = enabled
+      ? "admin_panel.maintenance_start_confirm"
+      : "admin_panel.maintenance_stop_confirm";
+    if (!window.confirm(translateText(promptKey))) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) {
+      this.loggedIn = false;
+      this.error = translateText("admin_panel.session_expired");
+      return;
+    }
+    try {
+      const { base, workerCount } = await this.apiBase();
+      const responses = await Promise.all(
+        Array.from({ length: workerCount }, (_, workerId) =>
+          fetch(`${base}/w${workerId}/api/admin/maintenance`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ enabled }),
+          }),
+        ),
+      );
+      if (responses.some((response) => response.status === 401)) {
+        sessionStorage.removeItem(SESSION_KEY);
+        this.loggedIn = false;
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      if (responses.some((response) => !response.ok)) {
+        throw new Error(translateText("admin_panel.maintenance_partial"));
+      }
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.maintenance_partial");
+      await this.refresh();
+    }
   }
 
   private async kick(gameID: string, clientID: string) {
@@ -422,7 +856,7 @@ export class AdminPanel extends LitElement {
     return html`
       <button
         class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start text-sm transition ${selected
-          ? "bg-indigo-500/15 text-indigo-200 ring-1 ring-inset ring-indigo-400/20"
+          ? "bg-sky-500/15 text-sky-200 ring-1 ring-inset ring-sky-400/20"
           : "text-slate-400 hover:bg-white/5 hover:text-white"}"
         aria-current=${selected ? "page" : "false"}
         @click=${() => (this.tab = tab)}
@@ -459,24 +893,40 @@ export class AdminPanel extends LitElement {
         body.admin-panel-open main-layout {
           display: block !important;
         }
+        admin-panel main section,
+        admin-panel main article {
+          box-shadow:
+            0 14px 30px rgba(0, 0, 0, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.035);
+          transform-style: preserve-3d;
+        }
+        admin-panel main button {
+          transition:
+            transform 140ms ease,
+            box-shadow 140ms ease;
+        }
+        admin-panel main button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+        }
       </style>
       <main
         class="grid min-h-screen place-items-center bg-[#0b0e14] px-4 text-slate-100"
       >
         <section
-          class="w-full max-w-md rounded-2xl border border-white/10 bg-[#111620] p-8 shadow-2xl shadow-black/40"
+          class="w-full max-w-md rounded-2xl border border-white/10 bg-[#111620] p-8 shadow-[0_28px_70px_rgba(0,0,0,.55),inset_0_1px_0_rgba(255,255,255,.06)]"
         >
           <div class="mb-7 flex items-center gap-3">
             <div
-              class="grid size-11 place-items-center rounded-xl bg-indigo-500 text-lg font-black text-white"
+              class="grid size-11 place-items-center rounded-xl bg-sky-600 text-lg font-black text-white shadow-[0_8px_18px_rgba(2,132,199,.3)]"
             >
-              O
+              د
             </div>
             <div>
               <p
-                class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300"
+                class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300"
               >
-                OpenFront
+                ${translateText("admin_panel.brand_name")}
               </p>
               <h1 class="text-xl font-bold">
                 ${translateText("admin_panel.login_title")}
@@ -503,7 +953,7 @@ export class AdminPanel extends LitElement {
                 >${translateText("admin_panel.username")}</span
               >
               <input
-                class="w-full rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2.5 outline-none transition focus:border-indigo-400"
+                class="w-full rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2.5 text-slate-100 caret-sky-300 outline-none transition placeholder:text-slate-500 focus:border-sky-400"
                 autocomplete="username"
                 required
                 .value=${this.username}
@@ -516,7 +966,7 @@ export class AdminPanel extends LitElement {
                 >${translateText("admin_panel.password")}</span
               >
               <input
-                class="w-full rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2.5 outline-none transition focus:border-indigo-400"
+                class="w-full rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2.5 text-slate-100 caret-sky-300 outline-none transition placeholder:text-slate-500 focus:border-sky-400"
                 type="password"
                 autocomplete="current-password"
                 required
@@ -526,7 +976,7 @@ export class AdminPanel extends LitElement {
               />
             </label>
             <button
-              class="mt-2 w-full rounded-lg bg-indigo-500 px-4 py-2.5 font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-wait disabled:opacity-60"
+              class="mt-2 w-full rounded-lg bg-sky-600 px-4 py-2.5 font-semibold text-white shadow-[0_6px_14px_rgba(2,132,199,.25)] transition hover:bg-sky-500 disabled:cursor-wait disabled:opacity-60"
               ?disabled=${this.submitting}
             >
               ${this.submitting
@@ -562,7 +1012,7 @@ export class AdminPanel extends LitElement {
             </p>
           </div>
           <input
-            class="min-w-56 rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2 text-sm outline-none focus:border-indigo-400"
+            class="min-w-56 rounded-lg border border-white/10 bg-[#0b0e14] px-3 py-2 text-sm outline-none focus:border-sky-400"
             type="search"
             .value=${this.search}
             placeholder=${translateText("admin_panel.search")}
@@ -624,13 +1074,22 @@ export class AdminPanel extends LitElement {
                       ${player.platform}
                     </td>
                     <td class="px-5 py-3.5 text-right">
-                      <button
-                        class="rounded-md border border-rose-400/20 px-2.5 py-1.5 text-xs text-rose-300 transition hover:bg-rose-400/10"
-                        @click=${() =>
-                          void this.kick(game.gameID, player.clientID)}
-                      >
-                        ${translateText("admin_panel.kick")}
-                      </button>
+                      <div class="flex justify-end gap-2">
+                        <button
+                          class="rounded-md border border-rose-400/20 px-2.5 py-1.5 text-xs text-rose-300 transition hover:bg-rose-400/10"
+                          @click=${() =>
+                            void this.kick(game.gameID, player.clientID)}
+                        >
+                          ${translateText("admin_panel.kick")}
+                        </button>
+                        <button
+                          class="rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-200 transition hover:bg-red-500/10"
+                          @click=${() =>
+                            void this.setAccountBan(player.accountKey, true)}
+                        >
+                          ${translateText("admin_panel.ban")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 `,
@@ -652,34 +1111,134 @@ export class AdminPanel extends LitElement {
     `;
   }
 
-  private renderPlaceholder(tab: "bans" | "reports") {
-    const isBans = tab === "bans";
+  private renderGames() {
+    const games = this.overviews.flatMap((overview) =>
+      overview.games.map((game) => ({ game, workerId: overview.workerId })),
+    );
     return html`
       <section
-        class="rounded-xl border border-white/[0.07] bg-[#111620] p-8 sm:p-10"
+        class="overflow-x-auto rounded-xl border border-white/[0.07] bg-[#111620]"
       >
-        <div class="mx-auto max-w-xl text-center">
-          <div
-            class="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-indigo-400/10 text-2xl text-indigo-300"
+        <table class="w-full min-w-[760px] text-left text-sm">
+          <thead
+            class="bg-white/[0.025] text-xs uppercase tracking-wider text-slate-500"
           >
-            ${isBans ? "⊘" : "⚑"}
-          </div>
-          <h2 class="text-xl font-semibold">
-            ${translateText(
-              isBans ? "admin_panel.bans" : "admin_panel.reports",
+            <tr>
+              <th class="px-5 py-3">Game ID</th>
+              <th class="px-5 py-3">${translateText("admin_panel.status")}</th>
+              <th class="px-5 py-3">${translateText("admin_panel.game")}</th>
+              <th class="px-5 py-3">${translateText("admin_panel.worker")}</th>
+              <th class="px-5 py-3">
+                ${translateText("admin_panel.online_users")}
+              </th>
+              <th class="px-5 py-3 text-right">
+                ${translateText("admin_panel.actions")}
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/[0.06]">
+            ${games.map(
+              ({ game, workerId }) => html`
+                <tr>
+                  <td class="px-5 py-3 font-mono text-xs text-slate-300">
+                    ${game.gameID}
+                  </td>
+                  <td class="px-5 py-3 text-slate-300">${game.phase}</td>
+                  <td class="px-5 py-3 text-slate-300">${game.gameType}</td>
+                  <td class="px-5 py-3 text-slate-400">${workerId}</td>
+                  <td class="px-5 py-3 text-slate-300">
+                    ${game.players.length}
+                  </td>
+                  <td class="px-5 py-3 text-right">
+                    <button
+                      class="rounded-md border border-sky-400/20 px-2.5 py-1.5 text-xs text-sky-200 hover:bg-sky-400/10"
+                      @click=${() => {
+                        this.search = game.gameID;
+                        this.tab = "users";
+                      }}
+                    >
+                      ${translateText("admin_panel.view_players")}
+                    </button>
+                  </td>
+                </tr>
+              `,
             )}
-          </h2>
-          <p class="mt-3 text-sm leading-6 text-slate-400">
-            ${translateText(
-              isBans
-                ? "admin_panel.ban_integration_note"
-                : "admin_panel.reports_future_note",
-            )}
-          </p>
-          <span
-            class="mt-5 inline-flex rounded-full border border-amber-300/20 bg-amber-300/5 px-3 py-1 text-xs text-amber-200"
-            >${translateText("admin_panel.requires_account_api")}</span
-          >
+            ${games.length === 0
+              ? html`<tr>
+                  <td colspan="6" class="px-5 py-10 text-center text-slate-500">
+                    ${translateText("admin_panel.no_games")}
+                  </td>
+                </tr>`
+              : ""}
+          </tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  private renderBans() {
+    const players = new Map<string, string>();
+    for (const overview of this.overviews) {
+      for (const game of overview.games) {
+        for (const player of game.players) {
+          players.set(player.accountKey, player.username);
+        }
+      }
+    }
+    return html`
+      <section class="space-y-4">
+        <p class="text-xs leading-5 text-slate-400">
+          ${translateText("admin_panel.bans_note")}
+        </p>
+        <div
+          class="overflow-x-auto rounded-xl border border-white/[0.07] bg-[#111620]"
+        >
+          <table class="w-full min-w-[560px] text-left text-sm">
+            <thead class="bg-white/[0.025] text-xs text-slate-500">
+              <tr>
+                <th class="px-5 py-3">
+                  ${translateText("admin_panel.player")}
+                </th>
+                <th class="px-5 py-3">Account key</th>
+                <th class="px-5 py-3 text-right">
+                  ${translateText("admin_panel.actions")}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/[0.06]">
+              ${this.accountKeys.map(
+                (accountKey) => html`
+                  <tr>
+                    <td class="px-5 py-3 text-slate-200">
+                      ${players.get(accountKey) ?? "Offline account"}
+                    </td>
+                    <td class="px-5 py-3 font-mono text-xs text-slate-500">
+                      ${accountKey.slice(0, 16)}…
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                      <button
+                        class="rounded-md border border-emerald-400/20 px-2.5 py-1.5 text-xs text-emerald-200 hover:bg-emerald-400/10"
+                        @click=${() =>
+                          void this.setAccountBan(accountKey, false)}
+                      >
+                        ${translateText("admin_panel.unban")}
+                      </button>
+                    </td>
+                  </tr>
+                `,
+              )}
+              ${this.accountKeys.length === 0
+                ? html`<tr>
+                    <td
+                      colspan="3"
+                      class="px-5 py-10 text-center text-slate-500"
+                    >
+                      ${translateText("admin_panel.no_bans")}
+                    </td>
+                  </tr>`
+                : ""}
+            </tbody>
+          </table>
         </div>
       </section>
     `;
@@ -714,7 +1273,9 @@ export class AdminPanel extends LitElement {
                         )}
                       </span>
                       <span class="text-xs text-slate-500"
-                        >Worker ${report.workerId}</span
+                        >${report.source === "game" && report.gameID
+                          ? `Game ${report.gameID}`
+                          : `Worker ${report.workerId}`}</span
                       >
                     </div>
                     <time class="text-xs text-slate-500"
@@ -739,21 +1300,892 @@ export class AdminPanel extends LitElement {
                       >
                     </p>
                   </div>
-                  <div
-                    class="mt-4 rounded-lg border border-white/[0.06] bg-black/20 p-3"
-                  >
-                    <p class="mb-1 text-[10px] font-semibold text-slate-500">
-                      ${translateText("admin_panel.reported_message")}
-                    </p>
-                    <p
-                      class="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200"
-                    >
-                      ${report.message}
-                    </p>
-                  </div>
+                  ${report.message
+                    ? html`<div
+                        class="mt-4 rounded-lg border border-white/[0.06] bg-black/20 p-3"
+                      >
+                        <p
+                          class="mb-1 text-[10px] font-semibold text-slate-500"
+                        >
+                          ${translateText("admin_panel.reported_message")}
+                        </p>
+                        <p
+                          class="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200"
+                        >
+                          ${report.message}
+                        </p>
+                      </div>`
+                    : ""}
                 </article>
               `,
             )}
+      </section>
+    `;
+  }
+
+  private resetAccountDraft() {
+    this.accountEditId = null;
+    this.accountDraftUsername = "";
+    this.accountDraftPassword = "";
+    this.accountDraftPhone = "";
+  }
+
+  private editManagedAccount(account: ManagedAccount) {
+    this.accountEditId = account.id;
+    this.accountDraftUsername = account.username;
+    this.accountDraftPassword = "";
+    this.accountDraftPhone = account.phone ?? "";
+  }
+
+  private async saveManagedAccount(event: SubmitEvent) {
+    event.preventDefault();
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    if (!this.accountEditId && this.accountDraftPassword.length < 8) {
+      this.error = translateText("admin_panel.account_password_required");
+      return;
+    }
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/accounts${this.accountEditId ? `/${encodeURIComponent(this.accountEditId)}` : ""}`,
+        {
+          method: this.accountEditId ? "PUT" : "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: this.accountDraftUsername,
+            password: this.accountDraftPassword || undefined,
+            phone: this.accountDraftPhone || null,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: unknown }
+          | null;
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : translateText("admin_panel.action_failed", {
+                status: response.status,
+              }),
+        );
+      }
+      this.resetAccountDraft();
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async changeManagedAccountBan(
+    account: ManagedAccount,
+    banned: boolean,
+  ) {
+    const confirmation = banned
+      ? "این حساب مسدود و از بازی‌های فعال خارج می‌شود. ادامه می‌دهید؟"
+      : "مسدودیت ورود این حساب برداشته شود؟";
+    if (!window.confirm(confirmation)) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base, workerCount } = await this.apiBase();
+      await Promise.all(
+        Array.from({ length: workerCount }, async (_, workerId) => {
+          const response = await fetch(
+            `${base}/w${workerId}/api/admin/accounts/${encodeURIComponent(account.id)}/${banned ? "ban" : "unban"}`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          );
+          if (!response.ok) {
+            throw new Error(
+              translateText("admin_panel.worker_failed", {
+                worker: workerId,
+                status: response.status,
+              }),
+            );
+          }
+        }),
+      );
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async deleteManagedAccount(account: ManagedAccount) {
+    if (
+      !window.confirm(
+        `حساب «${account.username}» برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`,
+      )
+    ) {
+      return;
+    }
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base, workerCount } = await this.apiBase();
+      const bans = await Promise.all(
+        Array.from({ length: workerCount }, (_, workerId) =>
+          fetch(
+            `${base}/w${workerId}/api/admin/accounts/${encodeURIComponent(account.id)}/ban`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          ),
+        ),
+      );
+      const failedBan = bans.find((response) => !response.ok);
+      if (failedBan) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: failedBan.status,
+          }),
+        );
+      }
+      const response = await fetch(
+        `${base}/w0/api/admin/accounts/${encodeURIComponent(account.id)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: response.status,
+          }),
+        );
+      }
+      if (this.accountEditId === account.id) this.resetAccountDraft();
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async warnManagedAccount(account: ManagedAccount) {
+    const message = window.prompt(
+      translateText("admin_panel.warn_prompt", {
+        username: account.username,
+      }),
+    );
+    if (message === null) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/accounts/${encodeURIComponent(account.id)}/warn`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ message }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: response.status,
+          }),
+        );
+      }
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async grantProductToAccount(account: ManagedAccount) {
+    const products = this.managedProducts.filter((product) => product.active);
+    if (products.length === 0) {
+      this.error = translateText("admin_panel.no_active_products");
+      return;
+    }
+    const choice = window.prompt(
+      `${translateText("admin_panel.choose_product")}\n${products
+        .map((product, index) => `${index + 1}. ${product.name}`)
+        .join("\n")}`,
+      "1",
+    );
+    if (choice === null) return;
+    const selected = Number(choice);
+    if (!Number.isInteger(selected) || selected < 1 || selected > products.length) {
+      this.error = translateText("admin_panel.action_failed", { status: "invalid product" });
+      return;
+    }
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/accounts/${encodeURIComponent(account.id)}/inventory`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ productId: products[selected - 1].id }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", { status: response.status }),
+        );
+      }
+      await this.refresh();
+    } catch (error) {
+      this.error = error instanceof Error
+        ? error.message
+        : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async temporarilyBanAccount(account: ManagedAccount) {
+    const input = window.prompt(
+      translateText("admin_panel.temporary_ban_prompt", {
+        username: account.username,
+      }),
+      "24",
+    );
+    if (input === null) return;
+    const hours = Number(input);
+    if (!Number.isInteger(hours) || hours < 1 || hours > 24 * 365) {
+      this.error = translateText("admin_panel.temporary_ban_invalid");
+      return;
+    }
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    try {
+      const { base, workerCount } = await this.apiBase();
+      await Promise.all(
+        Array.from({ length: workerCount }, async (_, workerId) => {
+          const response = await fetch(
+            `${base}/w${workerId}/api/admin/accounts/${encodeURIComponent(account.id)}/temporary-ban`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ hours }),
+            },
+          );
+          if (!response.ok) {
+            throw new Error(
+              translateText("admin_panel.worker_failed", {
+                worker: workerId,
+                status: response.status,
+              }),
+            );
+          }
+        }),
+      );
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async downloadAdminExport() {
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(`${base}/w0/api/admin/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: response.status,
+          }),
+        );
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "openfront-admin-export.json";
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    }
+  }
+
+  private async saveManagedCategory(event: SubmitEvent) {
+    event.preventDefault();
+    const name = this.categoryDraftName.trim();
+    if (!name) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/categories${this.categoryEditId ? `/${encodeURIComponent(this.categoryEditId)}` : ""}`,
+        {
+          method: this.categoryEditId ? "PUT" : "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name }),
+        },
+      );
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: unknown }
+          | null;
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : translateText("admin_panel.action_failed", { status: response.status }),
+        );
+      }
+      this.categoryEditId = null;
+      this.categoryDraftName = "";
+      await this.refresh();
+    } catch (error) {
+      this.error = error instanceof Error
+        ? error.message
+        : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async deleteManagedCategory(category: ManagedCategory) {
+    if (!window.confirm(`دستهٔ «${category.name}» حذف شود؟ محصولات بدون دسته باقی می‌مانند.`)) {
+      return;
+    }
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/categories/${encodeURIComponent(category.id)}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", { status: response.status }),
+        );
+      }
+      if (this.categoryEditId === category.id) {
+        this.categoryEditId = null;
+        this.categoryDraftName = "";
+      }
+      await this.refresh();
+    } catch (error) {
+      this.error = error instanceof Error
+        ? error.message
+        : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private resetProductDraft() {
+    this.productEditId = null;
+    this.productDraftName = "";
+    this.productDraftDescription = "";
+    this.productDraftPrice = "";
+    this.productDraftCurrency = "تومان";
+    this.productDraftPaymentUrl = "";
+    this.productDraftCategoryId = "";
+    this.productDraftActive = true;
+    this.productDraftImage = undefined;
+    this.productDraftImageUrl = null;
+  }
+
+  private editManagedProduct(product: ManagedProduct) {
+    this.productEditId = product.id;
+    this.productDraftName = product.name;
+    this.productDraftDescription = product.description;
+    this.productDraftPrice = String(product.price);
+    this.productDraftCurrency = product.currency;
+    this.productDraftPaymentUrl = product.paymentUrl ?? "";
+    this.productDraftCategoryId = product.categoryId ?? "";
+    this.productDraftActive = product.active;
+    this.productDraftImage = undefined;
+    this.productDraftImageUrl = product.imageUrl ?? null;
+  }
+
+  private async readProductImage(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (
+      file.size > 3 * 1024 * 1024 ||
+      !["image/png", "image/jpeg", "image/webp"].includes(file.type)
+    ) {
+      this.error = translateText("admin_panel.product_image_invalid");
+      input.value = "";
+      return;
+    }
+    try {
+      this.productDraftImage = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          typeof reader.result === "string"
+            ? resolve(reader.result)
+            : reject(new Error("Could not read product image"));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      this.productDraftImageUrl = this.productDraftImage;
+      this.error = null;
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.product_image_invalid");
+    }
+  }
+
+  private async saveManagedProduct(event: SubmitEvent) {
+    event.preventDefault();
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    const price = Number(this.productDraftPrice);
+    if (!Number.isSafeInteger(price) || price < 0) {
+      this.error = translateText("admin_panel.product_price_invalid");
+      return;
+    }
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/products${this.productEditId ? `/${encodeURIComponent(this.productEditId)}` : ""}`,
+        {
+          method: this.productEditId ? "PUT" : "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: this.productDraftName,
+            description: this.productDraftDescription,
+            price,
+            currency: this.productDraftCurrency,
+            paymentUrl: this.productDraftPaymentUrl || null,
+            categoryId: this.productDraftCategoryId || null,
+            active: this.productDraftActive,
+            imageDataUrl: this.productDraftImage,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as
+          | { error?: unknown }
+          | null;
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : translateText("admin_panel.action_failed", {
+                status: response.status,
+              }),
+        );
+      }
+      this.resetProductDraft();
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private async deleteManagedProduct(product: ManagedProduct) {
+    if (!window.confirm(`محصول «${product.name}» حذف شود؟`)) return;
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.submitting = true;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/products/${encodeURIComponent(product.id)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: response.status,
+          }),
+        );
+      }
+      if (this.productEditId === product.id) this.resetProductDraft();
+      await this.refresh();
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.load_failed");
+    } finally {
+      this.submitting = false;
+    }
+  }
+
+  private renderManagedAccounts() {
+    return html`<section class="space-y-5">
+      <div class="flex justify-end">
+        <button
+          class="rounded-lg border border-sky-400/30 px-4 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-400/10"
+          ?disabled=${this.submitting}
+          @click=${() => void this.downloadAdminExport()}
+        >
+          ${translateText("admin_panel.download_export")}
+        </button>
+      </div>
+      <form
+        class="grid gap-3 rounded-xl border border-white/[0.07] bg-[#111620] p-4 sm:grid-cols-2"
+        @submit=${(event: SubmitEvent) => void this.saveManagedAccount(event)}
+      >
+        <h2 class="sm:col-span-2 font-semibold text-slate-100">
+          ${this.accountEditId
+            ? translateText("admin_panel.edit_account")
+            : translateText("admin_panel.create_account")}
+        </h2>
+        <input
+          required
+          minlength="2"
+          maxlength="32"
+          autocomplete="off"
+          .value=${this.accountDraftUsername}
+          @input=${(event: InputEvent) =>
+            (this.accountDraftUsername = (event.target as HTMLInputElement).value)}
+          placeholder=${translateText("admin_panel.username")}
+          class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+        />
+        <input
+          type="password"
+          minlength="8"
+          maxlength="256"
+          autocomplete="new-password"
+          .value=${this.accountDraftPassword}
+          @input=${(event: InputEvent) =>
+            (this.accountDraftPassword = (event.target as HTMLInputElement).value)}
+          placeholder=${this.accountEditId
+            ? translateText("admin_panel.password_optional")
+            : translateText("admin_panel.password")}
+          class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+        />
+        <input
+          type="tel"
+          maxlength="24"
+          .value=${this.accountDraftPhone}
+          @input=${(event: InputEvent) =>
+            (this.accountDraftPhone = (event.target as HTMLInputElement).value)}
+          placeholder=${translateText("admin_panel.phone_optional")}
+          class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+        />
+        <div class="flex gap-2 sm:col-span-2">
+          <button
+            ?disabled=${this.submitting}
+            class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(2,132,199,.25)] disabled:opacity-50"
+          >
+            ${this.accountEditId
+              ? translateText("admin_panel.save_changes")
+              : translateText("admin_panel.create_account")}
+          </button>
+          ${this.accountEditId
+            ? html`<button
+                type="button"
+                class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300"
+                @click=${() => this.resetAccountDraft()}
+              >
+                ${translateText("admin_panel.cancel")}
+              </button>`
+            : ""}
+        </div>
+      </form>
+      <div class="overflow-x-auto rounded-xl border border-white/[0.07] bg-[#111620]">
+        <table class="w-full min-w-[720px] text-left text-sm">
+          <thead class="bg-white/[0.025] text-xs text-slate-500">
+            <tr>
+              <th class="px-4 py-3">${translateText("admin_panel.username")}</th>
+              <th class="px-4 py-3">${translateText("admin_panel.phone")}</th>
+              <th class="px-4 py-3">${translateText("admin_panel.status")}</th>
+              <th class="px-4 py-3">${translateText("admin_panel.created")}</th>
+              <th class="px-4 py-3 text-right">${translateText("admin_panel.actions")}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/[0.06]">
+            ${this.managedAccounts.map(
+              (account) => html`<tr>
+                <td class="px-4 py-3 font-medium text-slate-200">${account.username}</td>
+                <td class="px-4 py-3 text-slate-400">${account.phone ?? "—"}</td>
+                <td class="px-4 py-3 ${account.banned || (account.bannedUntil ?? 0) > Date.now() ? "text-rose-300" : "text-emerald-300"}">
+                  ${account.banned
+                    ? translateText("admin_panel.banned")
+                    : account.bannedUntil && account.bannedUntil > Date.now()
+                      ? translateText("admin_panel.banned_until", {
+                          time: new Date(account.bannedUntil).toLocaleString(),
+                        })
+                      : translateText("admin_panel.active")}
+                  <div class="text-xs text-slate-500">
+                    ${translateText("admin_panel.warning_count", {
+                      count: account.warningCount,
+                    })}
+                  </div>
+                  <div class="text-xs text-sky-200">
+                    ${translateText("admin_panel.inventory_count", {
+                      count: account.inventoryCount,
+                    })}
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-slate-500">${new Date(account.createdAt).toLocaleDateString()}</td>
+                <td class="px-4 py-3">
+                  <div class="flex justify-end gap-2">
+                    <button class="rounded border border-sky-400/20 px-2 py-1 text-xs text-sky-200" ?disabled=${this.submitting} @click=${() => void this.grantProductToAccount(account)}>${translateText("admin_panel.grant_product")}</button>
+                    <button class="rounded border border-white/10 px-2 py-1 text-xs text-slate-200" @click=${() => this.editManagedAccount(account)}>${translateText("admin_panel.edit")}</button>
+                    <button class="rounded border border-amber-400/20 px-2 py-1 text-xs text-amber-200" ?disabled=${this.submitting} @click=${() => void this.changeManagedAccountBan(account, !(account.banned || (account.bannedUntil ?? 0) > Date.now()))}>${account.banned || (account.bannedUntil ?? 0) > Date.now() ? translateText("admin_panel.unban") : translateText("admin_panel.ban")}</button>
+                    <button class="rounded border border-orange-400/20 px-2 py-1 text-xs text-orange-200" ?disabled=${this.submitting} @click=${() => void this.temporarilyBanAccount(account)}>${translateText("admin_panel.temporary_ban")}</button>
+                    <button class="rounded border border-yellow-400/20 px-2 py-1 text-xs text-yellow-200" ?disabled=${this.submitting} @click=${() => void this.warnManagedAccount(account)}>${translateText("admin_panel.warn")}</button>
+                    <button class="rounded border border-rose-400/20 px-2 py-1 text-xs text-rose-200" ?disabled=${this.submitting} @click=${() => void this.deleteManagedAccount(account)}>${translateText("admin_panel.delete")}</button>
+                  </div>
+                </td>
+              </tr>`,
+            )}
+            ${this.managedAccounts.length === 0
+              ? html`<tr><td colspan="5" class="px-4 py-10 text-center text-slate-500">${translateText("admin_panel.no_accounts")}</td></tr>`
+              : ""}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500">${translateText("admin_panel.local_data_note")}</p>
+      <p class="text-xs text-amber-200">${translateText("admin_panel.backup_sensitive_note")}</p>
+    </section>`;
+  }
+
+  private renderManagedProducts() {
+    return html`<section class="space-y-5">
+      <section class="rounded-xl border border-white/[0.07] bg-[#111620] p-4 shadow-[0_10px_24px_rgba(0,0,0,.25)]">
+        <h2 class="mb-3 font-semibold text-slate-100">${translateText("admin_panel.category")}</h2>
+        <form class="mb-4 flex flex-wrap gap-2" @submit=${(event: SubmitEvent) => void this.saveManagedCategory(event)}>
+          <input required maxlength="80" .value=${this.categoryDraftName} @input=${(event: InputEvent) => (this.categoryDraftName = (event.target as HTMLInputElement).value)} placeholder=${translateText("admin_panel.category_name")} class="min-w-48 flex-1 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" />
+          <button ?disabled=${this.submitting} class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">${translateText(this.categoryEditId ? "admin_panel.edit_category" : "admin_panel.add_category")}</button>
+          ${this.categoryEditId ? html`<button type="button" class="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300" @click=${() => { this.categoryEditId = null; this.categoryDraftName = ""; }}>${translateText("admin_panel.cancel")}</button>` : ""}
+        </form>
+        <div class="flex flex-wrap gap-2">
+          ${this.managedCategories.map((category) => html`<div class="flex items-center gap-2 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-sm text-slate-200">
+            <span>${category.name}</span>
+            <button class="text-sky-200 hover:text-white" @click=${() => { this.categoryEditId = category.id; this.categoryDraftName = category.name; }}>${translateText("admin_panel.edit")}</button>
+            <button class="text-rose-200 hover:text-white" ?disabled=${this.submitting} @click=${() => void this.deleteManagedCategory(category)}>${translateText("admin_panel.delete")}</button>
+          </div>`)}
+        </div>
+      </section>
+      <form
+        class="grid gap-3 rounded-xl border border-white/[0.07] bg-[#111620] p-4 shadow-[0_10px_24px_rgba(0,0,0,.25)] sm:grid-cols-2"
+        @submit=${(event: SubmitEvent) => void this.saveManagedProduct(event)}
+      >
+        <h2 class="sm:col-span-2 font-semibold text-slate-100">
+          ${this.productEditId
+            ? translateText("admin_panel.edit_product")
+            : translateText("admin_panel.add_product")}
+        </h2>
+        <input required maxlength="120" .value=${this.productDraftName} @input=${(event: InputEvent) => (this.productDraftName = (event.target as HTMLInputElement).value)} placeholder=${translateText("admin_panel.product_name")} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" />
+        <input required type="number" min="0" max="1000000000" step="1" .value=${this.productDraftPrice} @input=${(event: InputEvent) => (this.productDraftPrice = (event.target as HTMLInputElement).value)} placeholder=${translateText("admin_panel.product_price")} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" />
+        <select .value=${this.productDraftCurrency} @change=${(event: Event) => (this.productDraftCurrency = (event.target as HTMLSelectElement).value)} class="rounded-lg border border-white/10 bg-[#111620] px-3 py-2 text-sm text-white">
+          <option value="تومان">تومان</option><option value="ریال">ریال</option><option value="USD">USD</option>
+        </select>
+        <select .value=${this.productDraftCategoryId} @change=${(event: Event) => (this.productDraftCategoryId = (event.target as HTMLSelectElement).value)} class="rounded-lg border border-white/10 bg-[#111620] px-3 py-2 text-sm text-white">
+          <option value="">${translateText("admin_panel.all_categories")}</option>
+          ${this.managedCategories.map((category) => html`<option value=${category.id}>${category.name}</option>`)}
+        </select>
+        <input type="url" maxlength="2048" .value=${this.productDraftPaymentUrl} @input=${(event: InputEvent) => (this.productDraftPaymentUrl = (event.target as HTMLInputElement).value)} placeholder=${translateText("admin_panel.payment_url")} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" />
+        <input type="file" accept="image/png,image/jpeg,image/webp" @change=${(event: Event) => void this.readProductImage(event)} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-300" />
+        <textarea maxlength="2000" .value=${this.productDraftDescription} @input=${(event: InputEvent) => (this.productDraftDescription = (event.target as HTMLTextAreaElement).value)} placeholder=${translateText("admin_panel.product_description")} class="min-h-20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white sm:col-span-2"></textarea>
+        ${this.productDraftImageUrl
+          ? html`<div class="flex items-center gap-3 sm:col-span-2"><img src=${this.productDraftImageUrl} alt="" class="size-16 rounded object-cover" /><button type="button" class="text-xs text-rose-300" @click=${() => { this.productDraftImage = null; this.productDraftImageUrl = null; }}>${translateText("admin_panel.remove_image")}</button></div>`
+          : ""}
+        <label class="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" .checked=${this.productDraftActive} @change=${(event: Event) => (this.productDraftActive = (event.target as HTMLInputElement).checked)} />${translateText("admin_panel.product_active")}</label>
+        <div class="flex gap-2">
+          <button ?disabled=${this.submitting} class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(2,132,199,.25)] disabled:opacity-50">${translateText(this.productEditId ? "admin_panel.save_changes" : "admin_panel.add_product")}</button>
+          ${this.productEditId
+            ? html`<button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-sm text-slate-300" @click=${() => this.resetProductDraft()}>${translateText("admin_panel.cancel")}</button>`
+            : ""}
+        </div>
+      </form>
+      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        ${this.managedProducts.map(
+          (product) => html`          <article class="overflow-hidden rounded-xl border border-white/[0.07] bg-[#111620] shadow-[0_10px_24px_rgba(0,0,0,.25)]">
+            ${product.imageUrl ? html`<img src=${product.imageUrl} alt=${product.name} class="h-40 w-full object-cover" />` : ""}
+            <div class="space-y-2 p-4">
+              <div class="flex justify-between gap-2"><h3 class="font-semibold text-slate-100">${product.name}</h3><span class="text-xs ${product.active ? "text-emerald-300" : "text-slate-500"}">${product.active ? translateText("admin_panel.active") : translateText("admin_panel.hidden")}</span></div>
+              <p class="text-sm text-amber-200">${product.price.toLocaleString()} ${product.currency}</p>
+              ${product.categoryName ? html`<p class="text-xs text-sky-200">${product.categoryName}</p>` : ""}
+              <p class="line-clamp-3 whitespace-pre-wrap text-xs text-slate-400">${product.description}</p>
+              ${product.paymentUrl
+                ? html`<a href=${product.paymentUrl} target="_blank" rel="noopener noreferrer" class="block truncate text-xs text-sky-300">${product.paymentUrl}</a>`
+                : ""}
+              <div class="flex gap-2 pt-2">
+                <button class="rounded border border-white/10 px-2 py-1 text-xs text-slate-200" @click=${() => this.editManagedProduct(product)}>${translateText("admin_panel.edit")}</button>
+                <button class="rounded border border-rose-400/20 px-2 py-1 text-xs text-rose-200" ?disabled=${this.submitting} @click=${() => void this.deleteManagedProduct(product)}>${translateText("admin_panel.delete")}</button>
+              </div>
+            </div>
+          </article>`,
+        )}
+        ${this.managedProducts.length === 0
+          ? html`<p class="col-span-full py-10 text-center text-slate-500">${translateText("admin_panel.no_products")}</p>`
+          : ""}
+      </div>
+      <p class="text-xs text-slate-500">${translateText("admin_panel.product_image_note")}</p>
+    </section>`;
+  }
+
+  private renderMaintenanceControl() {
+    const enabled =
+      this.overviews.length > 0 &&
+      this.overviews.every((overview) => overview.maintenanceMode);
+    return html`
+      <section
+        class="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-rose-400/20 bg-rose-950/20 p-5"
+      >
+        <div>
+          <h2 class="font-semibold text-rose-100">
+            ${translateText("admin_panel.maintenance")}
+          </h2>
+          <p class="mt-1 text-xs text-rose-200/70">
+            ${enabled
+              ? translateText("admin_panel.maintenance_enabled")
+              : translateText("admin_panel.maintenance_status")}
+          </p>
+        </div>
+        <button
+          class="rounded-lg border border-rose-300/30 px-4 py-2 text-sm font-semibold text-rose-100 hover:bg-rose-400/10 disabled:opacity-50"
+          ?disabled=${this.loading || this.overviews.length === 0}
+          @click=${() => void this.setMaintenanceMode(!enabled)}
+        >
+          ${enabled
+            ? translateText("admin_panel.maintenance_resume")
+            : translateText("admin_panel.maintenance")}
+        </button>
+      </section>
+    `;
+  }
+
+  private renderLogs() {
+    return html`
+      <section class="space-y-3">
+        <p class="text-xs text-slate-500">
+          ${translateText("admin_panel.logs")} · ${this.logs.length}
+        </p>
+        ${this.systemLogsNotice
+          ? html`<p role="status" class="rounded-lg border border-amber-400/20 bg-amber-950/20 p-3 text-sm text-amber-100">${translateText("admin_panel.system_logs_unavailable", { reason: this.systemLogsNotice })}</p>`
+          : html`<p class="text-xs text-sky-200">${translateText("admin_panel.system_logs")}</p>`}
+        <div
+          class="overflow-x-auto rounded-xl border border-white/[0.07] bg-[#111620]"
+        >
+          <table class="w-full min-w-[760px] text-left font-mono text-xs">
+            <thead class="bg-white/[0.025] text-slate-500">
+              <tr>
+                <th class="px-4 py-3">Time</th>
+                <th class="px-4 py-3">Level</th>
+                <th class="px-4 py-3">Worker</th>
+                <th class="px-4 py-3">Message</th>
+                <th class="px-4 py-3">Details</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/[0.06]">
+              ${this.logs.map(
+                (entry) => html`
+                  <tr class="align-top hover:bg-white/[0.025]">
+                    <td class="whitespace-nowrap px-4 py-3 text-slate-500">
+                      ${new Date(entry.timestamp).toLocaleString()}
+                    </td>
+                    <td class="px-4 py-3 uppercase text-amber-200">
+                      ${entry.level}
+                    </td>
+                    <td class="px-4 py-3 text-slate-400">${entry.workerId}</td>
+                    <td
+                      class="max-w-xl whitespace-pre-wrap break-words px-4 py-3 text-slate-200"
+                    >
+                      ${entry.message}
+                    </td>
+                    <td
+                      class="max-w-md whitespace-pre-wrap break-words px-4 py-3 text-slate-500"
+                    >
+                      ${JSON.stringify(entry.metadata)}
+                    </td>
+                  </tr>
+                `,
+              )}
+              ${this.logs.length === 0
+                ? html`<tr>
+                    <td
+                      colspan="5"
+                      class="px-4 py-10 text-center text-slate-500"
+                    >
+                      ${translateText("admin_panel.no_logs")}
+                    </td>
+                  </tr>`
+                : ""}
+            </tbody>
+          </table>
+        </div>
       </section>
     `;
   }
@@ -773,147 +2205,177 @@ export class AdminPanel extends LitElement {
     const content =
       this.tab === "users"
         ? this.renderUsers()
-        : this.tab === "bans"
-          ? this.renderPlaceholder("bans")
-          : this.tab === "reports"
-            ? this.renderReports()
-            : html`
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  ${this.statCard(
-                    translateText("admin_panel.online_users"),
-                    `${players.length}`,
-                    "●",
-                    "text-emerald-300",
-                  )}
-                  ${this.statCard(
-                    translateText("admin_panel.active_games"),
-                    `${totalGames}`,
-                    "▣",
-                    "text-indigo-300",
-                  )}
-                  ${this.statCard(
-                    translateText("admin_panel.memory_rss"),
-                    this.formatBytes(totalMemory),
-                    "▤",
-                    "text-sky-300",
-                  )}
-                  ${this.statCard(
-                    translateText("admin_panel.workers"),
-                    `${this.overviews.length} / ${this.overviews[0]?.workerCount ?? 0}`,
-                    "⌘",
-                    "text-amber-300",
-                  )}
-                </div>
-                <section
-                  class="mt-5 rounded-xl border border-white/[0.07] bg-[#111620] p-5"
-                >
-                  <header class="mb-4 flex items-center justify-between gap-3">
-                    <div>
-                      <h2 class="font-semibold">
-                        ${translateText("admin_panel.server_health")}
-                      </h2>
-                      <p class="mt-1 text-xs text-slate-500">
-                        ${translateText("admin_panel.health_subtitle")}
-                      </p>
-                    </div>
-                    <span
-                      class="inline-flex items-center gap-2 text-xs text-emerald-300"
-                      ><span class="size-1.5 rounded-full bg-emerald-400"></span
-                      >${translateText("admin_panel.healthy")}</span
-                    >
-                  </header>
-                  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    ${this.overviews.map(
-                      (overview) => html`
-                        <article
-                          class="rounded-lg border border-white/[0.06] bg-[#0c1018] p-4"
-                        >
-                          <h3 class="text-sm font-medium">
-                            ${translateText("admin_panel.worker")}
-                            ${overview.workerId}
-                          </h3>
-                          <div class="mt-3 space-y-2 text-xs text-slate-400">
-                            <p>
-                              ${translateText("admin_panel.uptime")}:
-                              <span class="text-slate-200"
-                                >${this.formatUptime(
-                                  overview.uptimeSeconds,
-                                )}</span
-                              >
-                            </p>
-                            <p>
-                              ${translateText("admin_panel.worker_memory")}:
-                              <span class="text-slate-200"
-                                >${this.formatBytes(overview.memory.rss)}</span
-                              >
-                            </p>
-                            <p>
-                              ${translateText("admin_panel.load_average")}:
-                              <span class="text-slate-200"
-                                >${overview.loadAverage
-                                  .map((load) => load.toFixed(2))
-                                  .join(" / ")}</span
-                              >
-                            </p>
-                          </div>
-                        </article>
-                      `,
-                    )}
-                  </div>
-                </section>
-                <section
-                  class="mt-5 rounded-xl border border-white/[0.07] bg-[#111620]"
-                >
-                  <header
-                    class="flex items-center justify-between border-b border-white/[0.07] px-5 py-4"
-                  >
-                    <h2 class="font-semibold">
-                      ${translateText("admin_panel.recent_players")}
-                    </h2>
-                    <button
-                      class="text-xs text-indigo-300 hover:text-indigo-200"
-                      @click=${() => (this.tab = "users")}
-                    >
-                      ${translateText("admin_panel.view_all")}
-                    </button>
-                  </header>
-                  <div class="divide-y divide-white/[0.06]">
-                    ${this.filteredPlayers()
-                      .slice(0, 6)
-                      .map(
-                        ({ game, player }) => html`
-                          <div
-                            class="flex items-center justify-between gap-3 px-5 py-3"
-                          >
-                            <div class="min-w-0">
-                              <p class="truncate text-sm text-slate-200">
-                                ${player.username}
-                              </p>
-                              <p class="mt-1 text-xs text-slate-500">
-                                ${translateText("admin_panel.game")}
-                                ${game.gameID} · ${player.platform}
-                              </p>
-                            </div>
-                            <button
-                              class="shrink-0 rounded-md border border-rose-400/20 px-2.5 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10"
-                              @click=${() =>
-                                void this.kick(game.gameID, player.clientID)}
-                            >
-                              ${translateText("admin_panel.kick")}
-                            </button>
-                          </div>
-                        `,
+        : this.tab === "accounts"
+          ? this.renderManagedAccounts()
+          : this.tab === "products"
+            ? this.renderManagedProducts()
+            : this.tab === "bans"
+              ? this.renderBans()
+              : this.tab === "games"
+                ? this.renderGames()
+                : this.tab === "reports"
+                  ? this.renderReports()
+                  : this.tab === "logs"
+                    ? this.renderLogs()
+                    : html`
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      ${this.statCard(
+                        translateText("admin_panel.online_users"),
+                        `${players.length}`,
+                        "●",
+                        "text-emerald-300",
                       )}
-                    ${players.length === 0
-                      ? html`<p
-                          class="px-5 py-10 text-center text-sm text-slate-500"
+                      ${this.statCard(
+                        translateText("admin_panel.active_games"),
+                        `${totalGames}`,
+                        "▣",
+                        "text-sky-300",
+                      )}
+                      ${this.statCard(
+                        translateText("admin_panel.memory_rss"),
+                        this.formatBytes(totalMemory),
+                        "▤",
+                        "text-sky-300",
+                      )}
+                      ${this.statCard(
+                        translateText("admin_panel.workers"),
+                        `${this.overviews.length} / ${this.overviews[0]?.workerCount ?? 0}`,
+                        "⌘",
+                        "text-amber-300",
+                      )}
+                    </div>
+                    <section
+                      class="mt-5 rounded-xl border border-white/[0.07] bg-[#111620] p-5"
+                    >
+                      <header
+                        class="mb-4 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <h2 class="font-semibold">
+                            ${translateText("admin_panel.server_health")}
+                          </h2>
+                          <p class="mt-1 text-xs text-slate-500">
+                            ${translateText("admin_panel.health_subtitle")}
+                          </p>
+                        </div>
+                        <span
+                          class="inline-flex items-center gap-2 text-xs text-emerald-300"
+                          ><span
+                            class="size-1.5 rounded-full bg-emerald-400"
+                          ></span
+                          >${translateText("admin_panel.healthy")}</span
                         >
-                          ${translateText("admin_panel.no_players")}
-                        </p>`
-                      : ""}
-                  </div>
-                </section>
-              `;
+                      </header>
+                      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        ${this.overviews.map(
+                          (overview) => html`
+                            <article
+                              class="rounded-lg border border-white/[0.06] bg-[#0c1018] p-4"
+                            >
+                              <h3 class="text-sm font-medium">
+                                ${translateText("admin_panel.worker")}
+                                ${overview.workerId}
+                              </h3>
+                              <div
+                                class="mt-3 space-y-2 text-xs text-slate-400"
+                              >
+                                <p>
+                                  ${translateText("admin_panel.uptime")}:
+                                  <span class="text-slate-200"
+                                    >${this.formatUptime(
+                                      overview.uptimeSeconds,
+                                    )}</span
+                                  >
+                                </p>
+                                <p>
+                                  ${translateText("admin_panel.worker_memory")}:
+                                  <span class="text-slate-200"
+                                    >${this.formatBytes(
+                                      overview.memory.rss,
+                                    )}</span
+                                  >
+                                </p>
+                                <p>
+                                  ${translateText("admin_panel.load_average")}:
+                                  <span class="text-slate-200"
+                                    >${overview.loadAverage
+                                      .map((load) => load.toFixed(2))
+                                      .join(" / ")}</span
+                                  >
+                                </p>
+                              </div>
+                            </article>
+                          `,
+                        )}
+                      </div>
+                    </section>
+                    ${this.renderMaintenanceControl()}
+                    <section
+                      class="mt-5 rounded-xl border border-white/[0.07] bg-[#111620]"
+                    >
+                      <header
+                        class="flex items-center justify-between border-b border-white/[0.07] px-5 py-4"
+                      >
+                        <h2 class="font-semibold">
+                          ${translateText("admin_panel.recent_players")}
+                        </h2>
+                        <button
+                          class="text-xs text-sky-300 hover:text-sky-200"
+                          @click=${() => (this.tab = "users")}
+                        >
+                          ${translateText("admin_panel.view_all")}
+                        </button>
+                      </header>
+                      <div class="divide-y divide-white/[0.06]">
+                        ${this.filteredPlayers()
+                          .slice(0, 6)
+                          .map(
+                            ({ game, player }) => html`
+                              <div
+                                class="flex items-center justify-between gap-3 px-5 py-3"
+                              >
+                                <div class="min-w-0">
+                                  <p class="truncate text-sm text-slate-200">
+                                    ${player.username}
+                                  </p>
+                                  <p class="mt-1 text-xs text-slate-500">
+                                    ${translateText("admin_panel.game")}
+                                    ${game.gameID} · ${player.platform}
+                                  </p>
+                                </div>
+                                <button
+                                  class="shrink-0 rounded-md border border-rose-400/20 px-2.5 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10"
+                                  @click=${() =>
+                                    void this.kick(
+                                      game.gameID,
+                                      player.clientID,
+                                    )}
+                                >
+                                  ${translateText("admin_panel.kick")}
+                                </button>
+                                <button
+                                  class="shrink-0 rounded-md border border-red-500/30 px-2.5 py-1.5 text-xs text-red-200 hover:bg-red-500/10"
+                                  @click=${() =>
+                                    void this.setAccountBan(
+                                      player.accountKey,
+                                      true,
+                                    )}
+                                >
+                                  ${translateText("admin_panel.ban")}
+                                </button>
+                              </div>
+                            `,
+                          )}
+                        ${players.length === 0
+                          ? html`<p
+                              class="px-5 py-10 text-center text-sm text-slate-500"
+                            >
+                              ${translateText("admin_panel.no_players")}
+                            </p>`
+                          : ""}
+                      </div>
+                    </section>
+                      `;
 
     return html`
       <style>
@@ -937,19 +2399,35 @@ export class AdminPanel extends LitElement {
         body.admin-panel-open main-layout {
           display: block !important;
         }
+        admin-panel main section,
+        admin-panel main article {
+          box-shadow:
+            0 14px 30px rgba(0, 0, 0, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.035);
+          transform-style: preserve-3d;
+        }
+        admin-panel main button {
+          transition:
+            transform 140ms ease,
+            box-shadow 140ms ease;
+        }
+        admin-panel main button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+        }
       </style>
-      <div class="flex min-h-screen bg-[#0b0e14] text-slate-100">
+      <div class="flex min-h-screen bg-gradient-to-br from-[#111a25] via-[#0b0e14] to-[#07090d] text-slate-100">
         <aside
-          class="hidden w-60 shrink-0 border-r border-white/[0.07] bg-[#0e121a] px-3 py-5 md:flex md:flex-col"
+          class="hidden w-60 shrink-0 border-r border-white/[0.07] bg-[#0e121a] px-3 py-5 shadow-[8px_0_28px_rgba(0,0,0,.3)] md:flex md:flex-col"
         >
           <div class="mb-8 flex items-center gap-3 px-2">
             <div
-              class="grid size-9 place-items-center rounded-lg bg-indigo-500 font-black"
+              class="grid size-9 place-items-center rounded-lg bg-sky-600 font-black shadow-[0_6px_14px_rgba(2,132,199,.25)]"
             >
-              O
+              د
             </div>
             <div>
-              <p class="text-sm font-bold">OpenFront</p>
+              <p class="text-sm font-bold">${translateText("admin_panel.brand_name")}</p>
               <p class="text-[10px] uppercase tracking-[0.18em] text-slate-500">
                 Control panel
               </p>
@@ -966,13 +2444,25 @@ export class AdminPanel extends LitElement {
               translateText("admin_panel.overview"),
               "⌂",
             )}
+            ${this.navButton("games", translateText("admin_panel.games"), "▣")}
             ${this.navButton("users", translateText("admin_panel.users"), "♙")}
+            ${this.navButton(
+              "accounts",
+              translateText("admin_panel.accounts"),
+              "♙",
+            )}
+            ${this.navButton(
+              "products",
+              translateText("admin_panel.products"),
+              "▧",
+            )}
             ${this.navButton("bans", translateText("admin_panel.bans"), "⊘")}
             ${this.navButton(
               "reports",
               translateText("admin_panel.reports"),
               "⚑",
             )}
+            ${this.navButton("logs", translateText("admin_panel.logs"), "≡")}
           </nav>
           <div
             class="mt-auto rounded-lg border border-white/[0.07] bg-white/[0.02] p-3"
@@ -995,7 +2485,7 @@ export class AdminPanel extends LitElement {
           >
             <div class="flex items-center gap-3">
               <span
-                class="grid size-8 place-items-center rounded-lg bg-indigo-500 font-black md:hidden"
+                class="grid size-8 place-items-center rounded-lg bg-sky-600 font-black shadow-[0_6px_14px_rgba(2,132,199,.25)] md:hidden"
                 >O</span
               >
               <div>
@@ -1054,7 +2544,7 @@ export class AdminPanel extends LitElement {
               class="mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600"
             >
               <span
-                >OpenFront Admin ·
+                >${translateText("admin_panel.brand_name")} ·
                 ${translateText("admin_panel.internal_use")}</span
               >
               <span

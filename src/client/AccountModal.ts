@@ -3,12 +3,12 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import { html, nothing, TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ClientEnv } from "src/client/ClientEnv";
-import { z } from "zod";
 import { hasLinkedIdentity } from "./AccountIdentity";
 import { fetchPlayerById, getUserMe, invalidateUserMe } from "./Api";
 import {
   linkGoogle,
   linkSteam,
+  loginLocalAccount,
   logOut,
   reauthAfterCrazyGamesChange,
 } from "./Auth";
@@ -43,7 +43,7 @@ import { consumeLoginResult, LoginResult } from "./LoginResult";
 import "./PlayerProfileModal";
 import { steamSDK } from "./SteamSDK";
 import { playerProfileUrl } from "./utilities/PlayerProfileUrl";
-import { currentPagePath, isRTL, showToast, translateText } from "./Utils";
+import { currentPagePath, showToast, translateText } from "./Utils";
 
 // Each login refusal says its own thing. Sharing one string was fine while
 // email_exists was the only recognised result; a player refused because their
@@ -55,15 +55,6 @@ const LOGIN_ERROR_KEYS: Record<LoginResult, string> = {
   error: "account_modal.login_error",
   no_account: "account_modal.login_no_account",
 };
-
-const TestChatSessionSchema = z.object({
-  type: z.literal("test_session"),
-  token: z.string().min(1),
-  identity: z.object({
-    publicId: z.string(),
-    username: z.string(),
-  }),
-});
 
 const PHONE_AUTH_TEXT_FA: Record<string, string> = {
   "account_modal.phone_number": "شماره تلفن",
@@ -86,9 +77,9 @@ const PHONE_AUTH_TEXT_FA: Record<string, string> = {
   "account_modal.auth_login_fields_required":
     "شماره تلفن یا نام کاربری و رمز عبور را کامل کنید.",
   "account_modal.auth_login_failed":
-    "نام کاربری یا رمز عبور نادرست است، یا ورود آزمایشی فقط روی سرور محلی فعال است.",
+    "نام کاربری یا رمز عبور نادرست است، یا این حساب مسدود شده است.",
   "account_modal.auth_test_login_success":
-    "با حساب آزمایشی {username} وارد چت شدی.",
+    "با حساب {username} وارد شدی.",
   "account_modal.auth_phone_invalid":
     "شماره را بدون +98 و با ۱۰ رقم وارد کنید؛ شماره باید با 9 شروع شود.",
   "account_modal.auth_password_required": "رمز عبور را وارد کنید.",
@@ -96,7 +87,9 @@ const PHONE_AUTH_TEXT_FA: Record<string, string> = {
 
 function phoneAuthText(key: string): string {
   const translated = translateText(key);
-  if (isRTL() && PHONE_AUTH_TEXT_FA[key]) return PHONE_AUTH_TEXT_FA[key];
+  if (document.documentElement.dir === "rtl" && PHONE_AUTH_TEXT_FA[key]) {
+    return PHONE_AUTH_TEXT_FA[key];
+  }
   return translated === key ? (PHONE_AUTH_TEXT_FA[key] ?? key) : translated;
 }
 
@@ -986,16 +979,15 @@ export class AccountModal extends BaseModal {
 
     this.authSubmitting = true;
     try {
-      const session = await this.loginWithTestAccount(
+      const profile = await loginLocalAccount(
         this.username.trim(),
         this.password,
       );
-      localStorage.setItem(GLOBAL_CHAT_TEST_SESSION_KEY, session.token);
-      sessionStorage.setItem(GLOBAL_CHAT_TEST_SESSION_KEY, session.token);
-      window.dispatchEvent(new Event(GLOBAL_CHAT_AUTH_CHANGED_EVENT));
+      invalidateUserMe();
+      this.userMeResponse = profile;
       showToast(
         translateText("account_modal.auth_test_login_success", {
-          username: session.identity.username,
+          username: profile.player.username ?? this.username.trim(),
         }),
         "green",
       );
@@ -1005,77 +997,6 @@ export class AccountModal extends BaseModal {
     } finally {
       this.authSubmitting = false;
     }
-  }
-
-  private loginWithTestAccount(
-    username: string,
-    password: string,
-  ): Promise<{
-    token: string;
-    identity: { publicId: string; username: string };
-  }> {
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const socket = new WebSocket(`${ClientEnv.serverWsBase()}/w0/chat`);
-      const timeout = window.setTimeout(() => {
-        finish(new Error("Chat login timed out"));
-      }, 5000);
-
-      const finish = (
-        error?: Error,
-        session?: {
-          token: string;
-          identity: { publicId: string; username: string };
-        },
-      ) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeout);
-        socket.close();
-        if (error) reject(error);
-        else if (session) resolve(session);
-        else reject(new Error("Invalid chat login response"));
-      };
-
-      socket.addEventListener(
-        "open",
-        () => {
-          socket.send(
-            JSON.stringify({ type: "test_login", username, password }),
-          );
-        },
-        { once: true },
-      );
-      socket.addEventListener("message", (event) => {
-        let data: unknown;
-        try {
-          data = JSON.parse(String(event.data));
-        } catch {
-          return;
-        }
-        const response = z
-          .object({ type: z.string(), message: z.string().optional() })
-          .passthrough()
-          .safeParse(data);
-        if (response.success && response.data.type === "error") {
-          finish(new Error("Test account login rejected"));
-          return;
-        }
-        const session = TestChatSessionSchema.safeParse(data);
-        if (session.success) {
-          finish(undefined, {
-            token: session.data.token,
-            identity: session.data.identity,
-          });
-        }
-      });
-      socket.addEventListener("error", () => {
-        finish(new Error("Chat login connection failed"));
-      });
-      socket.addEventListener("close", () => {
-        if (!settled) finish(new Error("Chat login connection closed"));
-      });
-    });
   }
 
   private async handleRequestPhoneCode() {

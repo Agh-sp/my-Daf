@@ -10,6 +10,7 @@ import {
 import type { PropertyValues, TemplateResult } from "lit";
 import { html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { z } from "zod";
 import { BaseModal } from "./components/BaseModal";
 import "./components/CosmeticCard";
 import { cosmeticSelectionLabel } from "./components/CosmeticPresentation";
@@ -25,6 +26,7 @@ import { alignPurchaseRows } from "./components/PurchaseButton";
 import "./components/TribesPanel";
 import { modalHeader } from "./components/ui/ModalHeader";
 import {
+  fetchCosmetics,
   findPackItem,
   groupCosmeticVariants,
   ownedPackItems,
@@ -36,6 +38,29 @@ import { matchesStoreItem } from "./EquippedCosmetics";
 import { priceStringToCents } from "./Payments";
 import { lastUserMeResponse } from "./UserMeBroadcast";
 import { translateText } from "./Utils";
+import { localAccountApiUrl } from "./LocalAccountApi";
+
+const LocalProductsResponseSchema = z.object({
+  categories: z
+    .array(z.object({ id: z.string(), name: z.string() }))
+    .default([]),
+  products: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string(),
+      price: z.number().int().nonnegative(),
+      currency: z.string(),
+      imageUrl: z.string().nullable(),
+      paymentUrl: z.string().nullable().optional(),
+      categoryId: z.string().nullable().optional(),
+      categoryName: z.string().nullable().optional(),
+    }),
+  ),
+});
+type LocalProduct = z.infer<typeof LocalProductsResponseSchema>["products"][number];
+type LocalProductCategory =
+  z.infer<typeof LocalProductsResponseSchema>["categories"][number];
 
 const COSMETICS_SUB_TABS = ["patterns", "flags", "crowns"] as const;
 type CosmeticsSubTab = (typeof COSMETICS_SUB_TABS)[number];
@@ -71,6 +96,10 @@ export class StoreModal extends BaseModal {
   // refresh() after the catalog fetch, and a settled no-session result must
   // not wait on a slow catalog before it may say so.
   @state() private authSettled = false;
+  @state() private localProducts: LocalProduct[] = [];
+  @state() private localProductCategories: LocalProductCategory[] = [];
+  @state() private selectedLocalCategory = "";
+  @state() private localProductsError = false;
   private cosmeticsSubTab: CosmeticsSubTab = "patterns";
   // Item the URL asked for (`#modal=store&item=<key>`). Held until its group
   // is visible, then inspected so the store opens on that item.
@@ -95,6 +124,7 @@ export class StoreModal extends BaseModal {
         { key: "cosmetics", label: "ظاهرها" },
         { key: "effects", label: "جلوه‌ها" },
         { key: "tribes", label: "قبیله‌ها" },
+        { key: "products", label: "محصولات" },
       ],
     };
   }
@@ -330,6 +360,94 @@ export class StoreModal extends BaseModal {
         : "border-emerald-500/40 bg-emerald-500/15 text-base text-emerald-300"}"
       >${text}</span
     >`;
+  }
+
+  private renderLocalProducts(): TemplateResult {
+    if (this.localProductsError) {
+      return html`<section
+        role="alert"
+        dir="rtl"
+        class="p-8 text-center text-sm text-rose-300"
+      >
+        دریافت محصولات از سرور ناموفق بود.
+      </section>`;
+    }
+    if (this.localProducts.length === 0) {
+      return html`<section
+        dir="rtl"
+        class="p-8 text-center text-sm text-white/45"
+      >
+        هنوز محصولی برای فروش ثبت نشده است.
+      </section>`;
+    }
+    const products = this.localProducts.filter(
+      (product) =>
+        !this.selectedLocalCategory ||
+        product.categoryId === this.selectedLocalCategory,
+    );
+    return html`<section
+      dir="rtl"
+      class="p-4"
+    >
+      ${this.localProductCategories.length > 0
+        ? html`<label class="mb-4 flex items-center gap-3 text-sm text-white/70">
+            <span>${translateText("store.local_product_category")}</span>
+            <select
+              class="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-white"
+              .value=${this.selectedLocalCategory}
+              @change=${(event: Event) =>
+                (this.selectedLocalCategory = (
+                  event.target as HTMLSelectElement
+                ).value)}
+            >
+              <option value="">${translateText("store.local_product_all_categories")}</option>
+              ${this.localProductCategories.map(
+                (category) =>
+                  html`<option value=${category.id}>${category.name}</option>`,
+              )}
+            </select>
+          </label>`
+        : ""}
+      ${products.length === 0
+        ? html`<p class="p-8 text-center text-sm text-white/45">${translateText("store.local_products_empty_category")}</p>`
+        : html`<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      ${products.map(
+        (product) => html`<article
+          class="overflow-hidden rounded-xl border border-white/10 bg-white/[.04]"
+        >
+          ${product.imageUrl
+            ? html`<img
+                src=${product.imageUrl}
+                alt=${product.name}
+                loading="lazy"
+                class="h-48 w-full object-cover"
+              />`
+            : ""}
+          <div class="space-y-2 p-4">
+            <h3 class="font-bold text-white">${product.name}</h3>
+            ${product.categoryName
+              ? html`<p class="text-xs text-sky-200">${product.categoryName}</p>`
+              : ""}
+            <p class="whitespace-pre-wrap text-sm text-white/60">
+              ${product.description}
+            </p>
+            <p class="font-bold text-amber-200">
+              ${product.price.toLocaleString()} ${product.currency}
+            </p>
+            ${product.paymentUrl
+              ? html`<a
+                  href=${product.paymentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-300"
+                  >${translateText("store.local_product_pay")}</a
+                >`
+              : ""}
+          </div>
+        </article>`,
+      )}
+      </div>`}
+    </section>`;
   }
 
   private renderCardAction(
@@ -608,7 +726,24 @@ export class StoreModal extends BaseModal {
       : ""}`;
   }
 
-  protected renderBody(_key: string): TemplateResult {
+  protected renderBody(key: string): TemplateResult {
+    if (this.affiliateCode) return this.renderAffiliateGrid();
+    switch (key) {
+      case "packs":
+        return this.renderPackGrid();
+      case "subscriptions":
+        return this.renderSubscriptionGrid();
+      case "bundles":
+        return this.renderBundleGrid();
+      case "cosmetics":
+        return this.renderCosmeticsPanel();
+      case "effects":
+        return this.renderEffectGrid();
+      case "tribes":
+        return this.renderTribeGrid();
+      case "products":
+        return this.renderLocalProducts();
+    }
     return html`<section
       data-store-empty
       dir="rtl"
@@ -633,9 +768,13 @@ export class StoreModal extends BaseModal {
     });
   }
 
-  protected async onOpen() {
-    this.affiliateCode = null;
-    this.requestedItem = null;
+  protected async onOpen(args?: Record<string, unknown>) {
+    this.affiliateCode =
+      typeof args?.affiliateCode === "string" ? args.affiliateCode : null;
+    this.requestedItem =
+      typeof args?.item === "string" ? args.item : null;
+    this.pages.reset();
+    this.selectVisible(this.groupsForTab(this.activeTab));
     await this.refresh();
   }
 
@@ -657,6 +796,41 @@ export class StoreModal extends BaseModal {
   }
 
   public async refresh() {
+    this.localProductsError = false;
+    const [cosmetics, productsResponse] = await Promise.allSettled([
+      fetchCosmetics(),
+      fetch(localAccountApiUrl("/products"), {
+        signal: AbortSignal.timeout(10_000),
+      }),
+    ]);
+    if (cosmetics.status === "fulfilled") {
+      this.cosmetics = cosmetics.value;
+      this.selectVisible(this.groupsForTab(this.activeTab));
+    }
+    if (productsResponse.status === "rejected") {
+      this.localProductsError = true;
+    } else if (!productsResponse.value.ok) {
+      this.localProductsError = true;
+    } else {
+      try {
+        const parsed = LocalProductsResponseSchema.safeParse(
+          await productsResponse.value.json(),
+        );
+        if (!parsed.success) throw new Error("Invalid local product catalog");
+        this.localProducts = parsed.data.products;
+        this.localProductCategories = parsed.data.categories;
+        if (
+          this.selectedLocalCategory &&
+          !this.localProductCategories.some(
+            (category) => category.id === this.selectedLocalCategory,
+          )
+        ) {
+          this.selectedLocalCategory = "";
+        }
+      } catch {
+        this.localProductsError = true;
+      }
+    }
     this.requestUpdate();
   }
 }

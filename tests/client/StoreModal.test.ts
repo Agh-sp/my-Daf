@@ -952,6 +952,87 @@ describe("StoreModal cosmetic browser", () => {
   });
 });
 
+describe("StoreModal local product catalog", () => {
+  afterEach(() => {
+    store?.remove();
+    store = undefined;
+  });
+
+  it("renders products loaded from the local server", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        categories: [
+          { id: "cat-1", name: "Starter sets" },
+          { id: "cat-2", name: "Specials" },
+        ],
+        products: [
+          {
+            id: "product-1",
+            name: "Local starter pack",
+            description: "Stored on this server",
+            price: 250000,
+            currency: "تومان",
+            imageUrl: "/w0/api/local/products/product-1/image",
+            paymentUrl: "https://payments.example.test/checkout",
+            categoryId: "cat-1",
+            categoryName: "Starter sets",
+          },
+          {
+            id: "product-2",
+            name: "Special item",
+            description: "",
+            price: 50,
+            currency: "USD",
+            imageUrl: null,
+            paymentUrl: null,
+            categoryId: "cat-2",
+            categoryName: "Specials",
+          },
+        ],
+      }),
+    } as Response);
+
+    try {
+      store = document.createElement("store-modal") as StoreModal;
+      store.inline = true;
+      document.body.appendChild(store);
+      await store.updateComplete;
+      store.open({ tab: "products" });
+
+      await vi.waitFor(() =>
+        expect(store?.textContent).toContain("Local starter pack"),
+      );
+      expect(store?.textContent).toContain("250,000 تومان");
+      expect(store?.textContent).toContain("Starter sets");
+      expect(
+        store?.querySelector<HTMLAnchorElement>(
+          'a[href="https://payments.example.test/checkout"]',
+        )?.getAttribute("rel"),
+      ).toBe("noopener noreferrer");
+      expect(
+        store?.querySelector<HTMLImageElement>(
+          'img[alt="Local starter pack"]',
+        )?.getAttribute("src"),
+      ).toBe("/w0/api/local/products/product-1/image");
+      const categorySelect =
+        store?.querySelector<HTMLSelectElement>("select");
+      expect(categorySelect).not.toBeNull();
+      categorySelect!.value = "cat-2";
+      categorySelect!.dispatchEvent(new Event("change"));
+      await store?.updateComplete;
+      expect(store?.textContent).toContain("Special item");
+      expect(store?.textContent).not.toContain("Local starter pack");
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/w0/api/local/products"),
+        expect.any(Object),
+      );
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+});
+
 // The custom-amount card is sold on both rails since OPE-337: the server
 // accepts custom_currency on Steam, so the card is offered there too.
 describe("StoreModal on the Steam rail", () => {

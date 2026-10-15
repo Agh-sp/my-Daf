@@ -1,11 +1,9 @@
 import { GameMapType } from "@openfront/engine-api/game/GameTypes";
-import { UserMeResponse } from "@openfront/shared/ApiSchemas";
 import { PublicGameInfo, PublicGames } from "@openfront/shared/WireSchemas";
 import { html, nothing, TemplateResult } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { getDesktopSessionState } from "../Auth";
-import { crazyGamesSDK } from "../CrazyGamesSDK";
 import {
   getDesktopUpdateState,
   isDesktopShell,
@@ -20,7 +18,6 @@ import type { JoinLobbyModal } from "../JoinLobbyModal";
 import { whenModalLoaded } from "../LazyModals";
 import { PublicLobbySocket } from "../LobbySocket";
 import { JoinLobbyEvent } from "../Main";
-import { lastUserMeResponse } from "../UserMeBroadcast";
 import { UsernameInput } from "../UsernameInput";
 import {
   calculateServerTimeOffset,
@@ -47,14 +44,7 @@ import {
   NUMERIC_TEAM_CONFIGS,
   saveFilterProfile,
 } from "./DetailedGameViewFilters";
-import {
-  canJoinTrustedLobby,
-  lobbyCard,
-  mapAspectRatios,
-  trustRequiredDialog,
-  viewerIsSignedIn,
-  viewerIsTrusted,
-} from "./LobbyCard";
+import { lobbyCard, mapAspectRatios } from "./LobbyCard";
 import { modalHeader } from "./ui/ModalHeader";
 import { styledSelect } from "./ui/StyledSelect";
 
@@ -120,9 +110,6 @@ export class DetailedGameViewModal extends BaseModal {
   @state() private selectedProfile = "";
   @state() private profileName = "";
   @state() private desktopUpdateState: DesktopUpdateState | null = null;
-  @state() private viewerTrusted: boolean = false;
-  @state() private viewerSignedIn: boolean = false;
-  @state() private showTrustRequired: boolean = false;
   @state() private desktopSessionState: DesktopSessionState | null = null;
   // No backend-reachability state, deliberately. Every lobby this browser
   // shows arrived over a live game-server socket, and by the reachability
@@ -187,11 +174,6 @@ export class DetailedGameViewModal extends BaseModal {
       "desktop-update-state",
       this.onDesktopUpdateState,
     );
-    document.addEventListener("userMeResponse", this.onUserMe);
-    // It loads on demand (see LazyModals), usually after Main's broadcast
-    // went out.
-    const last = lastUserMeResponse();
-    if (last !== null) this.applyUserMe(last.response);
     if (isDesktopShell()) {
       // Seed BOTH from their current values -- this modal mounts well after
       // the update bridge's synchronous replay has already been dispatched
@@ -210,7 +192,6 @@ export class DetailedGameViewModal extends BaseModal {
       "desktop-update-state",
       this.onDesktopUpdateState,
     );
-    document.removeEventListener("userMeResponse", this.onUserMe);
     document.removeEventListener(
       "desktop-session-state",
       this.onDesktopSessionState,
@@ -222,22 +203,6 @@ export class DetailedGameViewModal extends BaseModal {
   private onDesktopUpdateState = (e: Event) => {
     this.desktopUpdateState = (e as CustomEvent<DesktopUpdateState>).detail;
   };
-
-  private onUserMe = (e: Event) => {
-    this.applyUserMe((e as CustomEvent<UserMeResponse | false>).detail);
-  };
-
-  private applyUserMe(me: UserMeResponse | false): void {
-    this.viewerSignedIn = viewerIsSignedIn(me);
-    this.viewerTrusted = viewerIsTrusted(me);
-    // A CrazyGames sign-in surfaces as a userMeResponse without a linked
-    // identity, so re-read the SDK profile alongside it.
-    if (crazyGamesSDK.isOnCrazyGames()) {
-      void crazyGamesSDK.getUserProfile().then((user) => {
-        if (user !== null) this.viewerSignedIn = true;
-      });
-    }
-  }
 
   private onDesktopSessionState = (e: Event) => {
     this.desktopSessionState = (e as CustomEvent<DesktopSessionState>).detail;
@@ -316,12 +281,6 @@ export class DetailedGameViewModal extends BaseModal {
 
     return html`
       <div class="custom-scrollbar p-4 lg:p-6 flex flex-col gap-4">
-        ${this.showTrustRequired
-          ? trustRequiredDialog(
-              this.viewerSignedIn,
-              () => (this.showTrustRequired = false),
-            )
-          : nothing}
         ${this.showFilters ? this.renderFilterPanel() : nothing}
         ${shown.length === 0
           ? html`<p class="py-12 text-center text-sm text-white/50">
@@ -478,7 +437,6 @@ export class DetailedGameViewModal extends BaseModal {
         this.desktopUpdateState,
         this.desktopSessionState,
       ),
-      viewerTrusted: this.viewerTrusted,
       onClick: () => this.join(lobby),
     });
   }
@@ -830,12 +788,6 @@ export class DetailedGameViewModal extends BaseModal {
     // leave the modal open and tell the player why, not vanish silently. This
     // sits above the hosted/public branch below so both paths are covered.
     if (this.blockedFromLobbyJoin()) return;
-    // Also before close(): the popup explains how to become trusted, so it
-    // must stay on screen with the browser rather than vanish with it.
-    if (!canJoinTrustedLobby(lobby, this.viewerTrusted)) {
-      this.showTrustRequired = true;
-      return;
-    }
     this.close();
 
     // Hosted lobbies are private games a subscriber listed publicly: joining
