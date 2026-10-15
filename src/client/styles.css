@@ -3271,8 +3271,13 @@ body:not(.in-game) nav-utility-icons button:focus-visible {
   }
 
   body:not(.in-game) music-player {
-    right: max(0.65rem, env(safe-area-inset-right)) !important;
-    bottom: max(0.65rem, env(safe-area-inset-bottom)) !important;
+    position: static !important;
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+    margin: 0.75rem 0;
+    padding-inline: max(0.65rem, env(safe-area-inset-left))
+      max(0.65rem, env(safe-area-inset-right));
   }
 
   body:not(.in-game) music-player > aside {
@@ -3290,6 +3295,37 @@ body:not(.in-game) nav-utility-icons button:focus-visible {
   body:not(.in-game) music-player > aside > button {
     width: 2rem;
     height: 2rem;
+  }
+
+  body.in-game music-player {
+    right: max(0.5rem, env(safe-area-inset-right)) !important;
+    bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  body.in-game music-player > aside {
+    width: 2.75rem;
+    height: 2.75rem;
+    justify-content: center;
+    gap: 0;
+    padding: 0.25rem;
+  }
+
+  body.in-game music-player > aside > div {
+    display: none;
+  }
+
+  body.in-game music-player > aside > button {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  body.in-game global-chat[game-mode] > aside {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.in-game global-chat[game-mode] > aside > section {
+    height: min(32rem, calc(100dvh - 6rem));
+    min-height: min(20rem, calc(100dvh - 6rem));
   }
 }
 

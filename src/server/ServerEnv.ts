@@ -6,6 +6,7 @@ import {
 } from "@openfront/shared/ClusterConfig";
 import { GameEnv, parseGameEnv } from "@openfront/shared/configuration/Env";
 import { generateGameID } from "@openfront/shared/SharedUtil";
+import { PUBLIC_LOBBY_START_DELAY_MS } from "@openfront/shared/WireSchemas";
 import { JWK } from "jose";
 import { z } from "zod";
 
@@ -130,7 +131,9 @@ export class ServerEnv {
     return 100;
   }
   static gameCreationRate(): number {
-    return ServerEnv.gameEnv === GameEnv.Dev ? 5 * 1000 : 2 * 60 * 1000;
+    return ServerEnv.env() === GameEnv.Dev
+      ? PUBLIC_LOBBY_START_DELAY_MS
+      : 2 * 60 * 1000;
   }
   static workerIndex(gameID: GameID): number {
     return simpleHash(gameID) % ServerEnv.numWorkers();

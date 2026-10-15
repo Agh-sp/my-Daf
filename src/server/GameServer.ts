@@ -362,12 +362,13 @@ export class GameServer {
     this.markFullIfAutoStarting();
   }
 
-  // Filling up starts host-less games (public, matchmade, admin bot) and
-  // listed lobbies. An unlisted lobby's player limit only turns players
-  // away: its host still starts it.
+  // Filling up starts host-less games (public, matchmade, admin bot). A
+  // listed lobby only stops accepting players at its cap; it still waits for
+  // the host-selected public start deadline. An unlisted lobby's player limit
+  // only turns players away: its host still starts it.
   private markFullIfAutoStarting(): void {
     if (
-      (this.creatorPersistentID === undefined || this.isListed()) &&
+      this.creatorPersistentID === undefined &&
       this.playerCount() >= (this.gameConfig.maxPlayers ?? Infinity)
     ) {
       this.hasReachedMaxPlayerCount = true;
@@ -1606,11 +1607,12 @@ export class GameServer {
     }
     const now = Date.now();
 
-    const lessThanLifetime = this.startsAt ? Date.now() < this.startsAt : true;
+    const lessThanLifetime =
+      this.startsAt === undefined || now < this.startsAt;
     if (
       lessThanLifetime &&
       !this.hasStarted() &&
-      !this.hasReachedMaxPlayerCount
+      (this.startsAt !== undefined || !this.hasReachedMaxPlayerCount)
     ) {
       return GamePhase.Lobby;
     }
@@ -1717,8 +1719,7 @@ export class GameServer {
   }
 
   // `options` are the host's picks from the listing dialog: how long until
-  // the lobby auto-starts, and the player cap that starts it early once
-  // filled.
+  // the lobby auto-starts, and the player cap that limits how many may join.
   public setListed(
     listed: boolean,
     options: { autoStartMs?: number; maxPlayers?: number } = {},
@@ -1729,9 +1730,6 @@ export class GameServer {
     // joined under.
     if (listed && !wasListed && options.maxPlayers !== undefined) {
       this.gameConfig.maxPlayers = options.maxPlayers;
-      if (this.playerCount() >= options.maxPlayers) {
-        this.hasReachedMaxPlayerCount = true;
-      }
     }
   }
 

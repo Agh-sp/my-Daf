@@ -176,12 +176,12 @@ export class GameManager {
         // A matchmade game missing a player at the start deadline is
         // cancelled instead of started short-handed.
         if (!game.hasStarted() && !game.cancelShortHandedMatch()) {
-          // Never start a game nobody is connected to. A lobby that filled up
-          // and then emptied reports Active (reaching maxPlayers takes it out
-          // of the Lobby phase), and the reap in phase() holds off until the
-          // ping clock goes quiet — so without this it would prestart and
-          // start with an empty roster, emitting a playerless match_started
-          // and running turns for nobody until the reaper caught up.
+          // Never start a game nobody is connected to. A fill-to-start lobby
+          // that then empties reports Active, and the reap in phase() holds
+          // off until the ping clock goes quiet — so without this it would
+          // prestart and start with an empty roster, emitting a playerless
+          // match_started and running turns for nobody until the reaper caught
+          // up.
           if (game.numClients() === 0) {
             // Debug, not info: this fires on every tick until the reaper
             // runs, which on idle staging previews was ~700k lines a day.

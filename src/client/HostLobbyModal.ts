@@ -84,7 +84,7 @@ export class HostLobbyModal extends BaseModal {
   @state() private maxTimerValue: number | undefined = undefined;
   @state() private playerLimit: boolean = false;
   @state() private playerLimitValue: number | undefined = undefined;
-  @state() private startDelayValue: number | undefined = 3;
+  @state() private startDelayValue: number | undefined = 60;
   @state() private instantBuild: boolean = false;
   @state() private randomSpawn: boolean = false;
   @state() private compactMap: boolean = false;
@@ -482,8 +482,8 @@ export class HostLobbyModal extends BaseModal {
         .inputStep=${"1"}
         .inputValue=${this.startDelayValue}
         .inputAriaLabel=${translateText("host_modal.start_delay")}
-        .inputPlaceholder=${"3"}
-        .defaultInputValue=${3}
+        .inputPlaceholder=${"60"}
+        .defaultInputValue=${60}
         .onChange=${this.handleStartDelayValueChanges}
         .onKeyDown=${this.handleStartDelayValueKeyDown}
       ></input-card>`,
@@ -1020,7 +1020,7 @@ export class HostLobbyModal extends BaseModal {
     this.playerLimit = false;
     this.playerLimitValue = undefined;
     this.playerLimitLoadedFor = null;
-    this.startDelayValue = 3;
+    this.startDelayValue = 60;
     this.instantBuild = false;
     this.randomSpawn = false;
     this.compactMap = false;

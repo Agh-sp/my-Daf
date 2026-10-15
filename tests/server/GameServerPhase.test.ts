@@ -48,12 +48,15 @@ describe("GameServer.phase()", () => {
     expect(game.phase()).toBe(GamePhase.Lobby);
   });
 
-  it("leaves Lobby as soon as the last seat fills, before startsAt", () => {
+  it("waits for startsAt even after the last seat fills", () => {
     const game = makeGame({
       startsAt: T0 + 10_000,
       config: { maxPlayers: 1 },
     });
     game.joinClient(makeClient());
+    expect(game.phase()).toBe(GamePhase.Lobby);
+
+    vi.advanceTimersByTime(10_001);
     expect(game.phase()).toBe(GamePhase.Active);
   });
 

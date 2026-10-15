@@ -245,7 +245,7 @@ describe("listed lobby auto-start", () => {
   });
 
   it("applies the host's start time and player cap", () => {
-    const game = makeGame();
+    const game = makeGame("test-game", CREATOR, { startDelay: 30 });
     game.joinClient(makeClient("host", CREATOR, fakeWs()));
     game.setListed(true, { autoStartMs: 2 * 60_000, maxPlayers: 2 });
     expect(game.autoStartAt()).toBe(Date.now() + 2 * 60_000);
@@ -256,9 +256,16 @@ describe("listed lobby auto-start", () => {
     game.setListed(true, { maxPlayers: 50 });
     expect(game.gameInfo().gameConfig?.maxPlayers).toBe(2);
 
-    // Filling to the cap starts the game before the deadline.
+    // Reaching the player cap stops further joins but does not start the game
+    // before the host-selected deadline.
     game.joinClient(makeClient("guest", OTHER_CREATOR, fakeWs()));
-    expect(game.phase()).toBe(GamePhase.Active);
+    expect(game.phase()).toBe(GamePhase.Lobby);
+    expect(game.autoStartAt()).toBe(Date.now() + 2 * 60_000);
+
+    vi.advanceTimersByTime(2 * 60_000);
+    game.maybeAutoStartListed();
+    expect(game.gameInfo().startsAt).toBe(Date.now() + 30_000);
+    expect(game.phase()).toBe(GamePhase.Lobby);
   });
 
   it("never auto-starts an unlisted lobby", () => {

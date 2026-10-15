@@ -161,13 +161,18 @@ export type ScheduledPublicGameType = z.infer<
 // and delists any overflow as the authoritative backstop.
 export const MAX_HOSTED_LOBBIES = 10;
 
+// Give players on slower connections a full minute to join a scheduled public
+// lobby before its start deadline, including development deployments.
+export const PUBLIC_LOBBY_START_DELAY_MS = 60 * 1000;
+
 // How long a lobby may stay publicly listed before it starts automatically,
 // so hosts can't sit on a listing indefinitely. Unlisting cancels the
 // deadline; relisting starts a fresh one.
 export const HOSTED_LOBBY_AUTO_START_MS = 5 * 60 * 1000;
 
 // The host picks the start time (up to HOSTED_LOBBY_AUTO_START_MS) and the
-// player cap when listing; filling to the cap starts the game early.
+// player cap when listing. A full lobby stops accepting players but still
+// waits for its selected deadline before starting.
 export const MIN_HOSTED_LOBBY_AUTO_START_MS = 60 * 1000;
 
 export const MIN_HOSTED_LOBBY_PLAYERS = 10;

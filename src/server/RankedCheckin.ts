@@ -1,4 +1,5 @@
 import { isCommitLike, isSiteLike } from "@openfront/shared/ServerList";
+import { PUBLIC_LOBBY_START_DELAY_MS } from "@openfront/shared/WireSchemas";
 import type winston from "winston";
 import { z } from "zod";
 import { registeredSite } from "./ClusterCheckin";
@@ -39,10 +40,9 @@ const CHECKIN_JITTER_MS = 1_000;
 // Deadline for the slowest matched player: after match-assignment the client
 // still has to poll game existence and clear join authorization;
 // anyone not connected when start() fires is left out of the roster and the
-// ranked game starts short-handed. A full lobby is NOT delayed by this —
-// hasReachedMaxPlayerCount flips the phase to Active as soon as everyone has
-// joined.
-const MATCH_START_DEADLINE_MS = 15_000;
+// ranked game starts short-handed. Even if the seats fill early, the start
+// deadline remains authoritative so late players have time to connect.
+const MATCH_START_DEADLINE_MS = PUBLIC_LOBBY_START_DELAY_MS;
 
 export const MatchmakingAssignmentSchema = z.object({
   // Flat list of matched players' publicIds.
