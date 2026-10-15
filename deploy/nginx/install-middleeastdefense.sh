@@ -43,12 +43,14 @@ fi
 
 mkdir -p "$DEST_DIR"
 
-while IFS= read -r file; do
-    [[ "$file" == "$DEST" ]] && continue
-    echo "Conflicting Nginx config found in conf.d: $file" >&2
-    echo "Resolve that duplicate server_name before installing this site config." >&2
-    exit 1
-done < <(grep -RIlE 'server_name[^;]*(^|[[:space:]])(www\.)?middleeastdefense\.ir([[:space:]]|;)' "$DEST_DIR" 2>/dev/null || true)
+for file in "$DEST_DIR"/*.conf; do
+    [[ -f "$file" && "$file" != "$DEST" ]] || continue
+    if grep -qE 'server_name[^;]*(^|[[:space:]])(www\.)?middleeastdefense\.ir([[:space:]]|;)' "$file"; then
+        echo "Conflicting Nginx config found in conf.d: $file" >&2
+        echo "Resolve that duplicate server_name before installing this site config." >&2
+        exit 1
+    fi
+done
 
 if ! grep -qE 'include[[:space:]]+/etc/nginx/conf\.d/\*\.conf;' /etc/nginx/nginx.conf; then
     echo "/etc/nginx/nginx.conf does not include /etc/nginx/conf.d/*.conf; cannot install the site config safely." >&2

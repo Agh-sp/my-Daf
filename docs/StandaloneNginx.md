@@ -15,7 +15,7 @@ After pulling the project on the server, run the installer from the repository
 root:
 
 ```sh
-sudo bash deploy/nginx/install-middleeastdefense.sh
+sudo bash deploy/nginx/install
 ```
 
 The installer refuses to continue unless the TLS certificate exists and ports
