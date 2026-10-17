@@ -1,5 +1,6 @@
 import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { ReportReasonSchema } from "@openfront/shared/WireSchemas";
 import { z } from "zod";
 import { ClientEnv } from "./ClientEnv";
 import { ensureServerList } from "./ServerList";
@@ -289,16 +290,7 @@ export const AdminChatReportSchema = z.object({
     username: z.string(),
   }),
   message: z.string().optional(),
-  reason: z.enum([
-    "abusive_language",
-    "harassment",
-    "spam",
-    "other",
-    "botting",
-    "teaming",
-    "inappropriate_username",
-    "griefing",
-  ]),
+  reason: ReportReasonSchema,
   createdAt: z.number(),
   workerId: z.number().optional(),
 });
@@ -569,18 +561,37 @@ export class AdminPanel extends LitElement {
       );
       this.error = workerFailures.length > 0 ? workerFailures.join(" ") : null;
       const sharedDataWorkerIds = availableWorkerIds.slice(0, 1);
-      const [reports, logs, accountKeys, localData] = await Promise.all([
-        this.fetchReports(base, availableWorkerIds, token),
+      const reportsRequest = this.fetchReports(
+        base,
+        availableWorkerIds,
+        token,
+      ).then(
+        (reports) => ({ reports, error: null }),
+        (error: unknown) => ({
+          reports: [] as AdminChatReport[],
+          error:
+            error instanceof Error
+              ? error.message
+              : translateText("admin_panel.load_failed"),
+        }),
+      );
+      const [reportResult, logs, accountKeys, localData] = await Promise.all([
+        reportsRequest,
         this.fetchLogs(base, sharedDataWorkerIds, token),
         this.fetchBans(base, sharedDataWorkerIds, token),
         this.fetchLocalAdminData(base, token),
       ]);
-      this.reports = reports;
+      if (!sessionStorage.getItem(SESSION_KEY)) {
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      this.reports = reportResult.reports;
       this.logs = logs;
       this.accountKeys = accountKeys;
       this.managedAccounts = localData.accounts;
       this.managedProducts = localData.products;
       this.managedCategories = localData.categories;
+      this.error =
+        [this.error, reportResult.error].filter(Boolean).join(" ") || null;
       this.loggedIn = true;
       this.lastUpdated = Date.now();
       if (this.active) {

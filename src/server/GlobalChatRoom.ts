@@ -1,3 +1,7 @@
+import type {
+  TokenPayload,
+  UserMeResponse,
+} from "@openfront/shared/ApiSchemas";
 import { GameEnv } from "@openfront/shared/configuration/Env";
 import { randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { WebSocket, WebSocketServer } from "ws";
@@ -654,12 +658,7 @@ async function verifyRegisteredIdentity(
   const userResult = await getUserMe(token);
   if (userResult.type !== "success") return null;
   const { user, player } = userResult.response;
-  const isRegistered =
-    user.discord !== undefined ||
-    user.google !== undefined ||
-    user.steam !== undefined ||
-    (user.email ?? "") !== "";
-  if (!isRegistered) return null;
+  if (!isRegisteredChatIdentity(user, verified.claims.provider)) return null;
 
   const username =
     player.username ??
@@ -668,6 +667,19 @@ async function verifyRegisteredIdentity(
     user.steam?.personaName ??
     "Player";
   return { publicId: player.publicId, username: username.slice(0, 24) };
+}
+
+export function isRegisteredChatIdentity(
+  user: UserMeResponse["user"],
+  provider: TokenPayload["provider"],
+): boolean {
+  return (
+    provider === "local" ||
+    user.discord !== undefined ||
+    user.google !== undefined ||
+    user.steam !== undefined ||
+    (user.email ?? "") !== ""
+  );
 }
 
 function cleanControlCharacters(value: string, replacement: string): string {

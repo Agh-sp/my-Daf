@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { WebSocket } from "ws";
 import {
   GlobalChatRoom,
+  isRegisteredChatIdentity,
   type GlobalChatIdentity,
 } from "../../src/server/GlobalChatRoom";
 
@@ -16,6 +17,11 @@ let server: http.Server | undefined;
 const clients: WebSocket[] = [];
 
 describe("GlobalChatRoom", () => {
+  test("local accounts count as registered chat identities", () => {
+    expect(isRegisteredChatIdentity({}, "local")).toBe(true);
+    expect(isRegisteredChatIdentity({}, undefined)).toBe(false);
+  });
+
   afterEach(async () => {
     for (const client of clients.splice(0)) {
       if (client.readyState === WebSocket.OPEN) client.terminate();
