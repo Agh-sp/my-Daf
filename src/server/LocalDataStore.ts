@@ -106,9 +106,9 @@ export class LocalDataStore {
     this.imageDirectory = path.join(directory, "product-images");
     mkdirSync(this.imageDirectory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path.join(directory, "app.sqlite"));
+    this.db.exec("PRAGMA busy_timeout = 5000;");
     this.db.exec(`
       PRAGMA journal_mode = WAL;
-      PRAGMA busy_timeout = 5000;
       PRAGMA foreign_keys = ON;
       CREATE TABLE IF NOT EXISTS local_accounts (
         id TEXT PRIMARY KEY,
