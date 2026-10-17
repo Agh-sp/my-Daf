@@ -86,6 +86,7 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.product_price_invalid": "قیمت باید عدد صحیح مثبت باشد.",
   "admin_panel.products": "محصولات فروشگاه",
   "admin_panel.remove_image": "حذف تصویر",
+  "admin_panel.select_image": "انتخاب تصویر",
   "admin_panel.save_changes": "ذخیره تغییرات",
   "admin_panel.eyebrow": "مدیریت سرور",
   "admin_panel.game": "بازی",
@@ -188,6 +189,19 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.worker": "ورکر",
   "admin_panel.worker_failed":
     "دریافت اطلاعات ورکر {worker} ناموفق بود (HTTP {status}).",
+  "admin_panel.log_time": "زمان",
+  "admin_panel.log_level": "سطح",
+  "admin_panel.log_worker": "ورکر",
+  "admin_panel.log_message": "پیام",
+  "admin_panel.log_details": "جزئیات",
+  "admin_panel.phase_lobby": "اتاق انتظار",
+  "admin_panel.phase_active": "در حال بازی",
+  "admin_panel.phase_finished": "پایان‌یافته",
+  "admin_panel.game_type_singleplayer": "تک‌نفره",
+  "admin_panel.game_type_public": "عمومی",
+  "admin_panel.game_type_private": "خصوصی",
+  "admin_panel.uptime_days": "{days} روز و {hours} ساعت",
+  "admin_panel.uptime_hours": "{hours} ساعت و {minutes} دقیقه",
   "admin_panel.worker_memory": "حافظهٔ پردازه",
   "admin_panel.workers": "ورکرها",
   "admin_panel.workers_online": "ورکر آنلاین",
@@ -921,8 +935,22 @@ export class AdminPanel extends LitElement {
     const hours = Math.floor(seconds / 3600);
     const days = Math.floor(hours / 24);
     return days > 0
-      ? `${days}d ${hours % 24}h`
-      : `${hours}h ${Math.floor((seconds % 3600) / 60)}m`;
+      ? translateText("admin_panel.uptime_days", {
+          days,
+          hours: hours % 24,
+        })
+      : translateText("admin_panel.uptime_hours", {
+          hours,
+          minutes: Math.floor((seconds % 3600) / 60),
+        });
+  }
+
+  private formatGamePhase(phase: string): string {
+    return translateText(`admin_panel.phase_${phase.toLowerCase()}`);
+  }
+
+  private formatGameType(gameType: string): string {
+    return translateText(`admin_panel.game_type_${gameType.toLowerCase()}`);
   }
 
   private navButton(tab: AdminTab, label: string, icon: string) {
@@ -947,6 +975,14 @@ export class AdminPanel extends LitElement {
   private renderLogin() {
     return html`
       <style>
+        body.admin-panel-open {
+          height: auto !important;
+          min-height: 100dvh;
+          overflow-x: clip !important;
+          overflow-y: auto !important;
+          flex-direction: column !important;
+          flex-wrap: nowrap !important;
+        }
         body.admin-panel-open desktop-nav-bar,
         body.admin-panel-open mobile-nav-bar,
         body.admin-panel-open page-footer,
@@ -966,6 +1002,13 @@ export class AdminPanel extends LitElement {
         }
         body.admin-panel-open main-layout {
           display: block !important;
+        }
+        body.admin-panel-open main-layout > main,
+        body.admin-panel-open main-layout > main > div,
+        body.admin-panel-open admin-panel {
+          min-height: 100dvh;
+          height: auto !important;
+          flex: none !important;
         }
         admin-panel main section,
         admin-panel main article {
@@ -1230,8 +1273,8 @@ export class AdminPanel extends LitElement {
                   <td class="px-5 py-3 font-mono text-xs text-slate-300">
                     ${game.gameID}
                   </td>
-                  <td class="px-5 py-3 text-slate-300">${game.phase}</td>
-                  <td class="px-5 py-3 text-slate-300">${game.gameType}</td>
+                  <td class="px-5 py-3 text-slate-300">${this.formatGamePhase(game.phase)}</td>
+                  <td class="px-5 py-3 text-slate-300">${this.formatGameType(game.gameType)}</td>
                   <td class="px-5 py-3 text-slate-400">${workerId}</td>
                   <td class="px-5 py-3 text-slate-300">
                     ${game.players.length}
@@ -2256,7 +2299,10 @@ export class AdminPanel extends LitElement {
           ${this.managedCategories.map((category) => html`<option value=${category.id}>${category.name}</option>`)}
         </select>
         <input type="url" maxlength="2048" .value=${this.productDraftPaymentUrl} @input=${(event: InputEvent) => (this.productDraftPaymentUrl = (event.target as HTMLInputElement).value)} placeholder=${translateText("admin_panel.payment_url")} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white" />
-        <input type="file" accept="image/png,image/jpeg,image/webp" @change=${(event: Event) => void this.readProductImage(event)} class="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-300" />
+        <label class="flex cursor-pointer items-center rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-300 hover:bg-white/5">
+          ${translateText("admin_panel.select_image")}
+          <input type="file" accept="image/png,image/jpeg,image/webp" @change=${(event: Event) => void this.readProductImage(event)} class="sr-only" />
+        </label>
         <textarea maxlength="2000" .value=${this.productDraftDescription} @input=${(event: InputEvent) => (this.productDraftDescription = (event.target as HTMLTextAreaElement).value)} placeholder=${translateText("admin_panel.product_description")} class="min-h-20 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white sm:col-span-2"></textarea>
         ${this.productDraftImageUrl
           ? html`<div class="flex items-center gap-3 sm:col-span-2"><img src=${this.productDraftImageUrl} alt="" class="size-16 rounded object-cover" /><button type="button" class="text-xs text-rose-300" @click=${() => { this.productDraftImage = null; this.productDraftImageUrl = null; }}>${translateText("admin_panel.remove_image")}</button></div>`
@@ -2343,11 +2389,11 @@ export class AdminPanel extends LitElement {
           <table class="w-full min-w-[760px] text-left font-mono text-xs">
             <thead class="bg-white/[0.025] text-slate-500">
               <tr>
-                <th class="px-4 py-3">Time</th>
-                <th class="px-4 py-3">Level</th>
-                <th class="px-4 py-3">Worker</th>
-                <th class="px-4 py-3">Message</th>
-                <th class="px-4 py-3">Details</th>
+                <th class="px-4 py-3">${translateText("admin_panel.log_time")}</th>
+                <th class="px-4 py-3">${translateText("admin_panel.log_level")}</th>
+                <th class="px-4 py-3">${translateText("admin_panel.log_worker")}</th>
+                <th class="px-4 py-3">${translateText("admin_panel.log_message")}</th>
+                <th class="px-4 py-3">${translateText("admin_panel.log_details")}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-white/[0.06]">
@@ -2585,6 +2631,14 @@ export class AdminPanel extends LitElement {
 
     return html`
       <style>
+        body.admin-panel-open {
+          height: auto !important;
+          min-height: 100dvh;
+          overflow-x: clip !important;
+          overflow-y: auto !important;
+          flex-direction: column !important;
+          flex-wrap: nowrap !important;
+        }
         body.admin-panel-open desktop-nav-bar,
         body.admin-panel-open mobile-nav-bar,
         body.admin-panel-open page-footer,
@@ -2604,6 +2658,13 @@ export class AdminPanel extends LitElement {
         }
         body.admin-panel-open main-layout {
           display: block !important;
+        }
+        body.admin-panel-open main-layout > main,
+        body.admin-panel-open main-layout > main > div,
+        body.admin-panel-open admin-panel {
+          min-height: 100dvh;
+          height: auto !important;
+          flex: none !important;
         }
         admin-panel main section,
         admin-panel main article {

@@ -27,6 +27,14 @@ export class Footer extends LitElement {
             class="text-xs mt-1 lg:mt-2 flex items-center justify-center gap-4 px-4"
           >
             <a
+              href="https://daramet.com/middleeastdefense"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-semibold text-amber-300 transition-colors hover:text-amber-200"
+            >
+              حمایت مالی
+            </a>
+            <a
               href="/terms-of-service.html"
               data-i18n="main.terms_of_service"
               target="_blank"
