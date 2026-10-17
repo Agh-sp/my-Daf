@@ -334,7 +334,7 @@ export class WinModal extends LitElement implements Controller {
       myPlayer.hasSpawned()
     ) {
       this.hasShownDeathModal = true;
-      this._title = translateText("win_modal.died");
+      this._title = translateText("win_modal.death_encouragement");
       this.eventBus.emit(new PlaySoundEffectEvent("defeat"));
       this.show();
     }
@@ -357,8 +357,10 @@ export class WinModal extends LitElement implements Controller {
           this.isWin = true;
           crazyGamesSDK.happytime();
         } else {
-          this._title = translateText("win_modal.other_team", {
-            team: wu.winner[1],
+          this._title = translateText("win_modal.loss_encouragement", {
+            winner: translateText("win_modal.other_team", {
+              team: wu.winner[1],
+            }),
           });
           this.isWin = false;
         }
@@ -367,8 +369,10 @@ export class WinModal extends LitElement implements Controller {
         this.show();
       } else if (wu.winner[0] === "nation") {
         this.eventBus.emit(new SendWinnerEvent(wu.winner, wu.allPlayersStats));
-        this._title = translateText("win_modal.nation_won", {
-          nation: wu.winner[1],
+        this._title = translateText("win_modal.loss_encouragement", {
+          winner: translateText("win_modal.nation_won", {
+            nation: wu.winner[1],
+          }),
         });
         this.isWin = false;
         this.playEndOfGameSound();
@@ -390,8 +394,8 @@ export class WinModal extends LitElement implements Controller {
           this.isWin = true;
           crazyGamesSDK.happytime();
         } else {
-          this._title = translateText("win_modal.other_won", {
-            player: winner.displayName(),
+          this._title = translateText("win_modal.loss_encouragement", {
+            winner: winner.displayName(),
           });
           this.isWin = false;
         }

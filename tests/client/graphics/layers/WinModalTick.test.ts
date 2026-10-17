@@ -8,7 +8,10 @@ import { SendWinnerEvent } from "../../../../src/client/Transport";
 import type { GameView } from "../../../../src/client/view";
 
 vi.mock("../../../../src/client/Utils", () => ({
-  translateText: vi.fn((key: string) => key),
+  translateText: vi.fn(
+    (key: string, params?: Record<string, string | number>) =>
+      `${key}:${JSON.stringify(params ?? {})}`,
+  ),
   getGamesPlayed: vi.fn(() => 10),
   isInIframe: vi.fn(() => false),
   homeHref: vi.fn(() => "/"),
@@ -41,6 +44,7 @@ type Winner = ["team", string] | ["player", string] | undefined;
 
 function makeGame(opts: {
   winner: Winner;
+  playerAlive?: boolean;
   myTeam?: string;
   myClientID?: string;
   winnerPlayer?: {
@@ -52,7 +56,7 @@ function makeGame(opts: {
   const winUpdate = { winner: opts.winner, allPlayersStats: {} };
   return {
     myPlayer: () => ({
-      isAlive: () => true,
+      isAlive: () => opts.playerAlive ?? true,
       hasSpawned: () => true,
       team: () => opts.myTeam ?? null,
       clientID: () => opts.myClientID ?? null,
@@ -123,7 +127,25 @@ describe("WinModal tick win handling", () => {
     expect(events).toHaveLength(1);
     expect(events[0].winner).toEqual(["player", "winner-client"]);
     expect(crazyGamesSDK.happytime).not.toHaveBeenCalled();
+    expect((modal as unknown as { _title: string })._title).toBe(
+      'win_modal.loss_encouragement:{"winner":"Bob"}',
+    );
     await vi.waitFor(() => expect(modal!.isVisible).toBe(true));
+  });
+
+  it("uses a friendly message when the player dies before the match ends", () => {
+    const game = makeGame({
+      winner: undefined,
+      playerAlive: false,
+    });
+    game.updatesSinceLastTick = () => null;
+    setup(game);
+
+    modal!.tick();
+
+    expect((modal as unknown as { _title: string })._title).toBe(
+      "win_modal.death_encouragement:{}",
+    );
   });
 
   it("celebrates when the winning client is me", async () => {

@@ -2851,12 +2851,14 @@
     "verified_use_hint": "Play under your verified account name"
   },
   "win_modal": {
+    "death_encouragement": "That was a tough battle! Take a breath — your next comeback starts whenever you're ready.",
     "died": "You died",
     "discord_description": "Connect with players, discover new features, and win prizes!",
     "exit": "Exit Game",
     "join_discord": "Join Our Discord Community!",
     "join_server": "Join Server",
     "keep": "Keep Playing",
+    "loss_encouragement": "Not your round this time — {winner} takes the win. Take a breather; the battlefield will be here when you're ready!",
     "match_cancelled": "Match cancelled — not all players spawned",
     "nation_won": "Nation {nation} has won!",
     "new_lobby": "New Lobby",
