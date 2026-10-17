@@ -1,6 +1,6 @@
-import { randomUUID } from "crypto";
-import { DatabaseSync } from "node:sqlite";
+import { randomUUID, timingSafeEqual } from "crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { DatabaseSync } from "node:sqlite";
 import path from "path";
 
 export type LocalAccount = {
@@ -66,6 +66,20 @@ type AccountRow = {
   updated_at: number;
 };
 
+type PhoneVerificationRow = {
+  purpose: "login" | "register";
+  code_hash: string | null;
+  expires_at: number;
+  attempts: number;
+};
+
+export class LocalPhoneAlreadyExistsError extends Error {
+  constructor() {
+    super("Phone number already exists");
+    this.name = "LocalPhoneAlreadyExistsError";
+  }
+}
+
 type ProductRow = {
   id: string;
   name: string;
@@ -108,6 +122,14 @@ export class LocalDataStore {
         warning_count INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS local_phone_verifications (
+        mobile TEXT PRIMARY KEY,
+        purpose TEXT NOT NULL CHECK (purpose IN ('login', 'register')),
+        code_hash TEXT,
+        expires_at INTEGER NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        sent_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS local_products (
         id TEXT PRIMARY KEY,
@@ -228,6 +250,151 @@ export class LocalDataStore {
     };
   }
 
+  findAccountsByPhone(mobile: string): LocalAccountCredentials[] {
+    const variants = [
+      mobile,
+      `0${mobile}`,
+      `98${mobile}`,
+      `+98${mobile}`,
+      `0098${mobile}`,
+    ];
+    const rows = this.db
+      .prepare(
+        `SELECT a.*, (SELECT COUNT(*) FROM local_inventory i WHERE i.account_id = a.id) AS inventory_count
+         FROM local_accounts a WHERE a.phone IN (?, ?, ?, ?, ?)`,
+      )
+      .all(...variants) as AccountRow[];
+    return rows.map((row) => ({
+      ...accountFromRow(row),
+      passwordSalt: row.password_salt,
+      passwordHash: row.password_hash,
+    }));
+  }
+
+  createPhoneAccount(input: {
+    mobile: string;
+    username: string;
+    passwordSalt: string;
+    passwordHash: string;
+  }): LocalAccount {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (this.findAccountsByPhone(input.mobile).length > 0) {
+        throw new LocalPhoneAlreadyExistsError();
+      }
+      const account = this.createAccount({
+        username: input.username,
+        phone: input.mobile,
+        passwordSalt: input.passwordSalt,
+        passwordHash: input.passwordHash,
+      });
+      this.db.exec("COMMIT");
+      return account;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  reservePhoneVerification(
+    mobile: string,
+    purpose: "login" | "register",
+    now: number,
+    cooldownMs: number,
+    expiresAt: number,
+  ): boolean {
+    this.db
+      .prepare("DELETE FROM local_phone_verifications WHERE sent_at < ?")
+      .run(now - 24 * 60 * 60 * 1000);
+    const result = this.db
+      .prepare(
+        `INSERT INTO local_phone_verifications
+           (mobile, purpose, code_hash, expires_at, attempts, sent_at)
+         VALUES (?, ?, NULL, ?, 0, ?)
+         ON CONFLICT(mobile) DO UPDATE SET
+           purpose = excluded.purpose,
+           code_hash = NULL,
+           expires_at = excluded.expires_at,
+           attempts = 0,
+           sent_at = excluded.sent_at
+         WHERE local_phone_verifications.sent_at <= ?`,
+      )
+      .run(mobile, purpose, expiresAt, now, now - cooldownMs);
+    return Number(result.changes) > 0;
+  }
+
+  completePhoneVerification(
+    mobile: string,
+    purpose: "login" | "register",
+    codeHash: string,
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE local_phone_verifications
+         SET code_hash = ?
+         WHERE mobile = ? AND purpose = ?`,
+      )
+      .run(codeHash, mobile, purpose);
+  }
+
+  consumePhoneVerification(
+    mobile: string,
+    purpose: "login" | "register",
+    codeHash: string,
+    now: number,
+    maxAttempts: number,
+  ): boolean {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const row = this.db
+        .prepare(
+          `SELECT purpose, code_hash, expires_at, attempts
+           FROM local_phone_verifications WHERE mobile = ?`,
+        )
+        .get(mobile) as PhoneVerificationRow | undefined;
+      if (!row || row.purpose !== purpose) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+      if (
+        row.expires_at <= now ||
+        row.attempts >= maxAttempts ||
+        row.code_hash === null
+      ) {
+        this.db
+          .prepare("DELETE FROM local_phone_verifications WHERE mobile = ?")
+          .run(mobile);
+        this.db.exec("COMMIT");
+        return false;
+      }
+
+      const expected = Buffer.from(row.code_hash, "hex");
+      const provided = Buffer.from(codeHash, "hex");
+      const matches =
+        expected.length === provided.length &&
+        timingSafeEqual(expected, provided);
+      if (!matches) {
+        this.db
+          .prepare(
+            `UPDATE local_phone_verifications
+             SET attempts = attempts + 1 WHERE mobile = ?`,
+          )
+          .run(mobile);
+        this.db.exec("COMMIT");
+        return false;
+      }
+
+      this.db
+        .prepare("DELETE FROM local_phone_verifications WHERE mobile = ?")
+        .run(mobile);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   listAccounts(): LocalAccount[] {
     return (
       this.db
@@ -310,7 +477,11 @@ export class LocalDataStore {
   }
 
   saveReports(
-    reports: readonly { id: string; createdAt: number; [key: string]: unknown }[],
+    reports: readonly {
+      id: string;
+      createdAt: number;
+      [key: string]: unknown;
+    }[],
   ): void {
     const insert = this.db.prepare(
       `INSERT INTO admin_reports (id, report_json, created_at) VALUES (?, ?, ?)
@@ -326,16 +497,18 @@ export class LocalDataStore {
   ): { id: string; createdAt: number; [key: string]: unknown }[] {
     return (
       this.db
-        .prepare("SELECT report_json FROM admin_reports ORDER BY created_at DESC")
+        .prepare(
+          "SELECT report_json FROM admin_reports ORDER BY created_at DESC",
+        )
         .all() as { report_json: string }[]
     )
       .map(
-      ({ report_json }) =>
-        JSON.parse(report_json) as {
-          id: string;
-          createdAt: number;
-          [key: string]: unknown;
-        },
+        ({ report_json }) =>
+          JSON.parse(report_json) as {
+            id: string;
+            createdAt: number;
+            [key: string]: unknown;
+          },
       )
       .filter(
         (report) => workerId === undefined || report.workerId === workerId,
@@ -344,7 +517,11 @@ export class LocalDataStore {
 
   exportData(): {
     accounts: LocalAccount[];
-    accountCredentials: { accountId: string; passwordSalt: string; passwordHash: string }[];
+    accountCredentials: {
+      accountId: string;
+      passwordSalt: string;
+      passwordHash: string;
+    }[];
     products: LocalProduct[];
     categories: LocalProductCategory[];
     inventory: LocalInventoryItem[];
@@ -666,9 +843,7 @@ export class LocalDataStore {
 
   getProductImage(id: string): { bytes: Buffer; mime: string } | null {
     const row = this.db
-      .prepare(
-        "SELECT image_path, image_mime FROM local_products WHERE id = ?",
-      )
+      .prepare("SELECT image_path, image_mime FROM local_products WHERE id = ?")
       .get(id) as
       | { image_path: string | null; image_mime: string | null }
       | undefined;
@@ -745,15 +920,16 @@ export class LocalDataStore {
   }
 
   private saveProductImage(id: string, bytes: Buffer): string {
-    const target = path.join(
-      this.imageDirectory,
-      `${id}-${randomUUID()}.img`,
-    );
+    const target = path.join(this.imageDirectory, `${id}-${randomUUID()}.img`);
     writeFileSync(target, bytes, { mode: 0o600 });
     return target;
   }
 
-  private ensureColumn(table: string, column: string, definition: string): void {
+  private ensureColumn(
+    table: string,
+    column: string,
+    definition: string,
+  ): void {
     const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as {
       name: string;
     }[];

@@ -8,10 +8,15 @@ import { fetchPlayerById, getUserMe, invalidateUserMe } from "./Api";
 import {
   linkGoogle,
   linkSteam,
+  isLocalPhoneSignupEnabled,
   LocalAccountLoginUnavailableError,
+  LocalPhoneAuthError,
   loginLocalAccount,
+  loginLocalAccountByPhone,
   logOut,
   reauthAfterCrazyGamesChange,
+  registerLocalAccountByPhone,
+  requestLocalPhoneCode,
 } from "./Auth";
 import "./components/baseComponents/stats/DiscordUserHeader";
 import "./components/baseComponents/stats/PlayerGameHistoryView";
@@ -60,8 +65,6 @@ const LOGIN_ERROR_KEYS: Record<LoginResult, string> = {
 const PHONE_AUTH_TEXT_FA: Record<string, string> = {
   "account_modal.phone_number": "شماره تلفن",
   "account_modal.phone_placeholder": "۹۱۲۳۴۵۶۷۸۹",
-  "account_modal.phone_auth_coming_soon":
-    "سرویس ارسال پیامک هنوز متصل نشده است.",
   "account_modal.auth_login": "ورود",
   "account_modal.auth_register": "ثبت‌نام",
   "account_modal.auth_phone": "شماره تلفن",
@@ -70,10 +73,18 @@ const PHONE_AUTH_TEXT_FA: Record<string, string> = {
   "account_modal.auth_password": "رمز عبور",
   "account_modal.auth_code": "کد تأیید پیامک",
   "account_modal.auth_send_code": "ارسال کد",
+  "account_modal.auth_code_sent": "کد تأیید برای شماره شما ارسال شد.",
+  "account_modal.auth_code_sending": "در حال ارسال…",
   "account_modal.auth_submit_login": "ورود به حساب",
   "account_modal.auth_submit_register": "ساخت حساب",
-  "account_modal.auth_code_required":
-    "برای ثبت‌نام، کد پیامک‌شده را وارد کنید.",
+  "account_modal.auth_phone_rate_limited": "برای ارسال دوباره کد کمی صبر کنید.",
+  "account_modal.auth_phone_unavailable":
+    "ارسال پیامک موقتاً در دسترس نیست. با مدیر سرور تماس بگیرید.",
+  "account_modal.auth_register_failed":
+    "ساخت حساب انجام نشد. اطلاعات را بررسی و دوباره تلاش کنید.",
+  "account_modal.auth_username_required": "نام کاربری را وارد کنید.",
+  "account_modal.auth_password_min": "رمز عبور باید حداقل ۸ نویسه باشد.",
+  "account_modal.auth_code_required": "کد تأیید پیامک‌شده را وارد کنید.",
   "account_modal.auth_login_method": "روش ورود",
   "account_modal.auth_login_fields_required":
     "شماره تلفن یا نام کاربری و رمز عبور را کامل کنید.",
@@ -95,6 +106,17 @@ function phoneAuthText(key: string): string {
   return translated === key ? (PHONE_AUTH_TEXT_FA[key] ?? key) : translated;
 }
 
+function phoneAuthErrorKey(
+  status: number,
+  purpose: "login" | "register",
+): string {
+  if (status === 429) return "account_modal.auth_phone_rate_limited";
+  if (status === 503) return "account_modal.auth_phone_unavailable";
+  return purpose === "login"
+    ? "account_modal.auth_login_failed"
+    : "account_modal.auth_register_failed";
+}
+
 @customElement("account-modal")
 export class AccountModal extends BaseModal {
   protected routerName = "account";
@@ -104,6 +126,7 @@ export class AccountModal extends BaseModal {
   @state() private password = "";
   @state() private verificationCode = "";
   @state() private authMode: "login" | "register" = "login";
+  @state() private phoneSignupEnabled = false;
   @state() private loginMethod: "phone" | "username" = "username";
   @state() private authSubmitting = false;
   @state() private isLoadingUser: boolean = false;
@@ -275,6 +298,40 @@ export class AccountModal extends BaseModal {
     `;
   }
 
+  private renderPhoneCodeField(): TemplateResult {
+    return html`
+      <div class="flex gap-2">
+        <input
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          .value=${this.verificationCode}
+          @input=${(event: InputEvent) => {
+            this.verificationCode = (event.target as HTMLInputElement).value
+              .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+              .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+              .replace(/\D/g, "")
+              .slice(0, 6);
+          }}
+          placeholder=${phoneAuthText("account_modal.auth_code")}
+          aria-label=${phoneAuthText("account_modal.auth_code")}
+          class="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-white outline-none transition placeholder:text-white/25 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/10"
+        />
+        <button
+          type="button"
+          ?disabled=${this.authSubmitting}
+          class="shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/[.08] px-3 text-xs font-bold text-amber-100 transition hover:bg-amber-200/[.14] disabled:cursor-wait disabled:opacity-50"
+          @click=${() => void this.handleRequestPhoneCode()}
+        >
+          ${this.authSubmitting
+            ? phoneAuthText("account_modal.auth_code_sending")
+            : phoneAuthText("account_modal.auth_send_code")}
+        </button>
+      </div>
+    `;
+  }
+
   private renderPasswordField(): TemplateResult {
     return html`<input
       type="password"
@@ -293,7 +350,7 @@ export class AccountModal extends BaseModal {
 
   private renderAuthModeToggle() {
     return html`<div
-      class="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/20 p-1"
+      class="grid ${this.phoneSignupEnabled ? "grid-cols-2" : "grid-cols-1"} gap-1 rounded-xl border border-white/10 bg-black/20 p-1"
       role="tablist"
       aria-label=${phoneAuthText("account_modal.auth_login_method")}
     >
@@ -309,18 +366,20 @@ export class AccountModal extends BaseModal {
       >
         ${phoneAuthText("account_modal.auth_login")}
       </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected=${this.authMode === "register"}
-        class="rounded-lg px-3 py-2.5 text-sm font-bold transition ${this
-          .authMode === "register"
-          ? "bg-amber-300/15 text-amber-100"
-          : "text-white/50 hover:text-white"}"
-        @click=${() => (this.authMode = "register")}
-      >
-        ${phoneAuthText("account_modal.auth_register")}
-      </button>
+      ${this.phoneSignupEnabled
+        ? html`<button
+            type="button"
+            role="tab"
+            aria-selected=${this.authMode === "register"}
+            class="rounded-lg px-3 py-2.5 text-sm font-bold transition ${this
+              .authMode === "register"
+              ? "bg-amber-300/15 text-amber-100"
+              : "text-white/50 hover:text-white"}"
+            @click=${() => (this.authMode = "register")}
+          >
+            ${phoneAuthText("account_modal.auth_register")}
+          </button>`
+        : nothing}
     </div>`;
   }
 
@@ -857,7 +916,7 @@ export class AccountModal extends BaseModal {
                     </button>
                   </div>
                   ${this.loginMethod === "phone"
-                    ? this.renderPhoneField()
+                    ? html`${this.renderPhoneField()}${this.renderPhoneCodeField()}`
                     : html`<input
                         type="text"
                         autocomplete="username"
@@ -875,7 +934,9 @@ export class AccountModal extends BaseModal {
                         )}
                         class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-white outline-none transition placeholder:text-white/25 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/10"
                       />`}
-                  ${this.renderPasswordField()}
+                  ${this.loginMethod === "username"
+                    ? this.renderPasswordField()
+                    : nothing}
                   <button
                     type="button"
                     ?disabled=${this.authSubmitting}
@@ -889,49 +950,28 @@ export class AccountModal extends BaseModal {
                 `
               : html`
                   ${this.renderPhoneField()}
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      inputmode="numeric"
-                      autocomplete="one-time-code"
-                      maxlength="6"
-                      .value=${this.verificationCode}
-                      @input=${(event: InputEvent) => {
-                        this.verificationCode = (
-                          event.target as HTMLInputElement
-                        ).value
-                          .replace(/[۰-۹]/g, (digit) =>
-                            String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)),
-                          )
-                          .replace(/[٠-٩]/g, (digit) =>
-                            String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)),
-                          )
-                          .replace(/\D/g, "")
-                          .slice(0, 6);
-                      }}
-                      placeholder=${phoneAuthText("account_modal.auth_code")}
-                      aria-label=${phoneAuthText("account_modal.auth_code")}
-                      class="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-white outline-none transition placeholder:text-white/25 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/10"
-                    />
-                    <button
-                      type="button"
-                      class="shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/[.08] px-3 text-xs font-bold text-amber-100 transition hover:bg-amber-200/[.14]"
-                      @click=${() => void this.handleRequestPhoneCode()}
-                    >
-                      ${phoneAuthText("account_modal.auth_send_code")}
-                    </button>
-                  </div>
-                  ${this.renderPasswordField()}
+                  <input
+                    type="text"
+                    autocomplete="username"
+                    .value=${this.username}
+                    @input=${(event: InputEvent) => {
+                      this.username = (event.target as HTMLInputElement).value;
+                    }}
+                    placeholder=${phoneAuthText("account_modal.auth_username")}
+                    aria-label=${phoneAuthText("account_modal.auth_username")}
+                    class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-sm font-medium text-white outline-none transition placeholder:text-white/25 focus:border-amber-300/50 focus:ring-2 focus:ring-amber-300/10"
+                  />
+                  ${this.renderPhoneCodeField()} ${this.renderPasswordField()}
                   <button
                     type="button"
+                    ?disabled=${this.authSubmitting}
                     class="w-full rounded-xl bg-gradient-to-br from-amber-200 to-amber-400 px-4 py-3.5 text-sm font-black text-zinc-950 transition hover:from-amber-100 hover:to-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40"
                     @click=${() => void this.handleRegister()}
                   >
-                    ${phoneAuthText("account_modal.auth_submit_register")}
+                    ${this.authSubmitting
+                      ? phoneAuthText("account_modal.auth_signing_in")
+                      : phoneAuthText("account_modal.auth_submit_register")}
                   </button>
-                  <p class="text-center text-xs leading-5 text-white/40">
-                    ${phoneAuthText("account_modal.phone_auth_coming_soon")}
-                  </p>
                 `}
           </div>
 
@@ -962,26 +1002,97 @@ export class AccountModal extends BaseModal {
   }
 
   private async handleLogin() {
-    const hasIdentifier =
-      this.loginMethod === "phone"
-        ? /^9\d{9}$/.test(this.phoneNumber)
-        : this.username.trim().length > 0;
-    if (!hasIdentifier || this.password.length === 0) {
+    const phoneLogin = this.loginMethod === "phone";
+    const hasIdentifier = phoneLogin
+      ? /^9\d{9}$/.test(this.phoneNumber)
+      : this.username.trim().length > 0;
+    if (!hasIdentifier || (!phoneLogin && this.password.length === 0)) {
       await showInGameAlert(
         phoneAuthText("account_modal.auth_login_fields_required"),
       );
       return;
     }
-    if (this.loginMethod !== "username") {
-      await showInGameAlert(
-        phoneAuthText("account_modal.phone_auth_coming_soon"),
-      );
+    if (phoneLogin && this.verificationCode.length !== 6) {
+      await showInGameAlert(phoneAuthText("account_modal.auth_code_required"));
       return;
     }
 
     this.authSubmitting = true;
     try {
-      const profile = await loginLocalAccount(
+      const profile = phoneLogin
+        ? await loginLocalAccountByPhone(
+            this.phoneNumber,
+            this.verificationCode,
+          )
+        : await loginLocalAccount(this.username.trim(), this.password);
+      invalidateUserMe();
+      this.userMeResponse = profile;
+      showToast(
+        translateText("account_modal.auth_test_login_success", {
+          username:
+            profile.player.username ??
+            (phoneLogin ? this.phoneNumber : this.username.trim()),
+        }),
+        "green",
+      );
+      this.close();
+    } catch (error) {
+      const errorKey =
+        error instanceof LocalPhoneAuthError
+          ? phoneAuthErrorKey(error.status, "login")
+          : error instanceof LocalAccountLoginUnavailableError
+            ? "account_modal.auth_local_login_unavailable"
+            : "account_modal.auth_login_failed";
+      await showInGameAlert(phoneAuthText(errorKey));
+    } finally {
+      this.authSubmitting = false;
+    }
+  }
+
+  private async handleRequestPhoneCode() {
+    if (!/^9\d{9}$/.test(this.phoneNumber)) {
+      await showInGameAlert(phoneAuthText("account_modal.auth_phone_invalid"));
+      return;
+    }
+    this.authSubmitting = true;
+    try {
+      await requestLocalPhoneCode(this.phoneNumber, this.authMode);
+      showToast(phoneAuthText("account_modal.auth_code_sent"), "green");
+    } catch (error) {
+      const errorKey =
+        error instanceof LocalPhoneAuthError
+          ? phoneAuthErrorKey(error.status, this.authMode)
+          : "account_modal.auth_phone_unavailable";
+      await showInGameAlert(phoneAuthText(errorKey));
+    } finally {
+      this.authSubmitting = false;
+    }
+  }
+
+  private async handleRegister() {
+    if (!/^9\d{9}$/.test(this.phoneNumber)) {
+      await showInGameAlert(phoneAuthText("account_modal.auth_phone_invalid"));
+      return;
+    }
+    if (this.verificationCode.length !== 6) {
+      await showInGameAlert(phoneAuthText("account_modal.auth_code_required"));
+      return;
+    }
+    if (this.username.trim().length === 0) {
+      await showInGameAlert(
+        phoneAuthText("account_modal.auth_username_required"),
+      );
+      return;
+    }
+    if (this.password.length < 8) {
+      await showInGameAlert(phoneAuthText("account_modal.auth_password_min"));
+      return;
+    }
+    this.authSubmitting = true;
+    try {
+      const profile = await registerLocalAccountByPhone(
+        this.phoneNumber,
+        this.verificationCode,
         this.username.trim(),
         this.password,
       );
@@ -996,43 +1107,13 @@ export class AccountModal extends BaseModal {
       this.close();
     } catch (error) {
       const errorKey =
-        error instanceof LocalAccountLoginUnavailableError
-          ? "account_modal.auth_local_login_unavailable"
-          : "account_modal.auth_login_failed";
+        error instanceof LocalPhoneAuthError
+          ? phoneAuthErrorKey(error.status, "register")
+          : "account_modal.auth_register_failed";
       await showInGameAlert(phoneAuthText(errorKey));
     } finally {
       this.authSubmitting = false;
     }
-  }
-
-  private async handleRequestPhoneCode() {
-    if (!/^9\d{9}$/.test(this.phoneNumber)) {
-      await showInGameAlert(phoneAuthText("account_modal.auth_phone_invalid"));
-      return;
-    }
-    await showInGameAlert(
-      phoneAuthText("account_modal.phone_auth_coming_soon"),
-    );
-  }
-
-  private async handleRegister() {
-    if (!/^9\d{9}$/.test(this.phoneNumber)) {
-      await showInGameAlert(phoneAuthText("account_modal.auth_phone_invalid"));
-      return;
-    }
-    if (this.verificationCode.length !== 6) {
-      await showInGameAlert(phoneAuthText("account_modal.auth_code_required"));
-      return;
-    }
-    if (this.password.length === 0) {
-      await showInGameAlert(
-        phoneAuthText("account_modal.auth_password_required"),
-      );
-      return;
-    }
-    await showInGameAlert(
-      phoneAuthText("account_modal.phone_auth_coming_soon"),
-    );
   }
 
   // CrazyGames sign-in: after their prompt completes, exchange the new token
@@ -1093,6 +1174,16 @@ export class AccountModal extends BaseModal {
     this.prefillCreatorCode = this.consumeCreatorCodeArg(args);
 
     this.refreshCrazyGamesUser();
+    void isLocalPhoneSignupEnabled()
+      .then((enabled) => {
+        this.phoneSignupEnabled = enabled;
+        if (!enabled) this.authMode = "login";
+      })
+      .catch((error: unknown) => {
+        console.warn("Failed to fetch local account options:", error);
+        this.phoneSignupEnabled = false;
+        this.authMode = "login";
+      });
 
     void getUserMe()
       .then((userMe) => {

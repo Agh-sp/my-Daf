@@ -10,14 +10,19 @@ worker.
   players. The online count includes active game connections only, not website
   visitors or empty lobbies. The memory card shows host RAM in use / total, not
   the sum of each Node.js worker's process memory.
+- **Users** shows players currently connected to active games and distinguishes
+  clients with token claims from guest sessions. It cannot show anonymous
+  website visitors or offline identities.
 - **Reports** combines global-chat reports with player reports filed during
   active games. Reports are written to SQLite as they are submitted and remain
   available after a worker restart.
 - **Accounts** creates local username/password accounts, shows their optional
   phone numbers, allows edits/deletion, records warnings, and enforces permanent
   or timed bans on login and game joins. Products can be manually granted to a
-  local account and are saved in that account's server-side inventory. Passwords
-  are scrypt-hashed; plaintext passwords are never stored.
+  local account and are saved in that account's server-side inventory, where
+  the panel can show the individual delivered items. This local account list is
+  not the complete account registry of the separate closed-source API.
+  Passwords are scrypt-hashed; plaintext passwords are never stored.
 - **Products** manages a local product catalog with name, description, integer
   price, currency, an optional HTTPS payment link, visibility, and an optional
   PNG/JPEG/WebP image (up to 3 MB). Administrators can create, rename, and
@@ -26,13 +31,16 @@ worker.
   Players see active products, category filters, and payment links. Saved
   categories remain visible even when no active products are available. The
   link opens an external payment page; this catalog does not verify payment or
-  automatically fulfill purchases.
+  automatically fulfill purchases. A payment gateway integration with a
+  signed server-to-server webhook is required before an order can be marked
+  paid and delivered automatically. Manual admin grants persist in local
+  account inventory, but these catalog items are not equipable game cosmetics.
 - **Inventory** shows products manually granted to the signed-in local account.
   These are delivered products, not equipable game cosmetics.
 - **Export / backup** downloads a JSON snapshot of local accounts, password
   salts and hashes, products and image bytes, categories, inventory, warnings,
-  reports, and retained application logs. It is not an import/restore tool.
-  Treat the file as sensitive and store it securely.
+  reports, game-account ban hashes, and retained application logs. It is not an
+  import/restore tool. Treat the file as sensitive and store it securely.
 - **Bans** continues to display game bans not associated with local accounts.
   Local account bans are managed in Accounts and are enforced for this
   deployment only.
@@ -59,9 +67,23 @@ Admin credentials are provided to each game worker with
 hex>` format; the session secret must be at least 32 characters.
 
 Local account tokens require `LOCAL_AUTH_SECRET` with at least 32 random
-characters. Create the first account from the admin panel's Accounts tab.
-There is no public signup or SMS verification flow. Admin-created accounts
-sign in in the site's account modal using their username and password.
+characters. Phone sign-in and public signup use SMS.ir's VERIFY endpoint
+([SMS.ir VERIFY API guide](https://app.sms.ir/developer/help/verify)). In the
+SMS.ir developer panel, open **API key list**, choose **Add new key**, and
+create a **Production** key for this server. Then create a verification
+template in the panel's fast-send/template area. Configure
+`SMSIR_API_KEY`, `SMSIR_OTP_TEMPLATE_ID`, and `SMSIR_OTP_PARAMETER` on every
+game worker; the parameter name must match the template key without `#` (for
+example, `CODE`). Keep the API key in the server's secret environment only:
+never commit it, put it in `example.env`, or expose it in client configuration.
+The VERIFY request does not accept a sender-line number; SMS.ir routes it using
+the approved template and the service configured for that template. The
+template must be approved before SMS.ir will accept production sends.
+Phone sign-in requires a verified number already attached to a local account;
+public signup creates a local account after phone verification only when
+`LOCAL_PHONE_SIGNUP_ENABLED=true` is set on the server. It is disabled by
+default. Admin-created accounts can also continue to sign in with their
+username and password.
 If a valid local account receives a sign-in service unavailable error, check
 that this secret is set in the PM2 process environment on every worker, then
 restart the workers. Keep the secret stable and private; changing it expires

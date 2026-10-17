@@ -177,6 +177,7 @@ export class GameManager {
         username: client.username,
         spectator: client.spectator,
         platform: client.platform,
+        registered: client.claims !== null,
       })),
     }));
   }

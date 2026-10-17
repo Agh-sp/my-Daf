@@ -360,6 +360,19 @@ export function registerAdminPanelRoutes({
     return res.json({ accounts: localDataStore.listAccounts() });
   });
 
+  app.get("/api/admin/accounts/:id/inventory", async (req, res) => {
+    if (!(await authorizeAdmin(req, res))) return;
+    if (!localDataStore) {
+      return res.status(503).json({ error: "Local account store unavailable" });
+    }
+    if (!localDataStore.getAccount(req.params.id)) {
+      return res.status(404).json({ error: "Account not found" });
+    }
+    return res.json({
+      items: localDataStore.listAccountInventory(req.params.id),
+    });
+  });
+
   app.get("/api/admin/export", async (req, res) => {
     if (!(await authorizeAdmin(req, res))) return;
     if (!localDataStore) {
@@ -368,7 +381,11 @@ export function registerAdminPanelRoutes({
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Pragma", "no-cache");
     const content = JSON.stringify(
-      { exportedAt: new Date().toISOString(), ...localDataStore.exportData() },
+      {
+        exportedAt: new Date().toISOString(),
+        ...localDataStore.exportData(),
+        gameAccountBanKeys: (await banStore?.list()) ?? [],
+      },
       null,
       2,
     );

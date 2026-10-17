@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { z } from "zod";
 import { ClientEnv } from "./ClientEnv";
@@ -9,6 +9,10 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.brand_name": "دفاع خاورمیانه",
   "admin_panel.action_failed": "انجام عملیات ناموفق بود (HTTP {status}).",
   "admin_panel.accounts": "حساب‌های ثبت‌شده",
+  "admin_panel.registered": "ثبت‌نام‌شده",
+  "admin_panel.guest": "مهمان / بدون حساب",
+  "admin_panel.accounts_scope":
+    "این فهرست فقط حساب‌های محلی همین بازی را نشان می‌دهد؛ بازیکنان آنلاین در بخش «کاربران» دیده می‌شوند. فهرست حساب‌های سامانهٔ اصلی از API جداگانه می‌آید.",
   "admin_panel.account_password_required": "رمز عبور باید حداقل ۸ نویسه باشد.",
   "admin_panel.active_games": "بازی‌های فعال",
   "admin_panel.active": "فعال",
@@ -17,7 +21,7 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.admin_session": "نشست مدیر فعال است",
   "admin_panel.authenticating": "در حال ورود…",
   "admin_panel.ban_integration_note":
-    "برای اعمال بن سراسری باید سرویس حساب کاربری هنگام ورود به هر سرور، بن را بررسی کند. این سرور هنوز API پایدار بن ندارد؛ بنابراین کیک محلی را به‌عنوان بن سراسری نمایش نمی‌دهیم.",
+    "بن حساب‌های بازی روی دیسک سرور ذخیره می‌شود و اتصال دوباره به بازی را رد می‌کند. حساب‌های محلی نیز هنگام ورود با نام کاربری یا شماره بررسی می‌شوند.",
   "admin_panel.bans": "بن‌ها",
   "admin_panel.ban": "مسدودسازی",
   "admin_panel.unban": "رفع مسدودی",
@@ -41,6 +45,16 @@ const ADMIN_TEXT_FA: Record<string, string> = {
     "اطلاعات حساب‌ها و رمزهای هش‌شده در SQLite روی دیسک سرور ذخیره می‌شوند. رمز خام هرگز ذخیره یا نمایش داده نمی‌شود.",
   "admin_panel.no_accounts": "حسابی ساخته نشده است.",
   "admin_panel.download_export": "دانلود اطلاعات کاربران و محصولات",
+  "admin_panel.inventory_items": "نمایش اقلام",
+  "admin_panel.inventory_hide": "بستن فهرست",
+  "admin_panel.inventory_empty": "هنوز محصولی به این حساب تحویل نشده است.",
+  "admin_panel.inventory_granted_by": "تحویل‌دهنده: {name}",
+  "admin_panel.inventory_date": "تاریخ تحویل: {time}",
+  "admin_panel.users_scope":
+    "این بخش بازیکنان متصل به بازی را زنده نشان می‌دهد؛ بازدیدکنندگان سایت و حساب‌های آفلاین در این فهرست نیستند.",
+  "admin_panel.inventory_load_failed": "بارگیری موجودی این حساب ناموفق بود.",
+  "admin_panel.account_inventory_scope":
+    "هدیه‌ها در حساب محلی ذخیره می‌شوند و پس از ورود دوباره باقی می‌مانند. استفادهٔ واقعی از هر محصول به پشتیبانی همان قابلیت در بازی نیاز دارد.",
   "admin_panel.category": "دسته‌بندی محصول",
   "admin_panel.category_name": "نام دسته‌بندی",
   "admin_panel.add_category": "ساخت دسته",
@@ -65,6 +79,8 @@ const ADMIN_TEXT_FA: Record<string, string> = {
     "تصویر باید PNG، JPEG یا WebP و حداکثر ۳ مگابایت باشد.",
   "admin_panel.product_image_note":
     "تصویرها روی دیسک همین سرور ذخیره می‌شوند. لینک پرداخت HTTPS باز می‌شود؛ تأیید پرداخت یا تحویل خودکار سفارش از این کاتالوگ انجام نمی‌شود.",
+  "admin_panel.purchase_link_note":
+    "دکمهٔ خرید بازیکن را به لینک پرداخت می‌برد. بدون اتصال تأییدشدهٔ درگاه (webhook)، پرداخت و تحویل خودکار ثبت نمی‌شود؛ هدیهٔ مدیر در موجودی حساب ذخیره خواهد شد.",
   "admin_panel.product_name": "نام محصول",
   "admin_panel.product_price": "قیمت",
   "admin_panel.product_price_invalid": "قیمت باید عدد صحیح مثبت باشد.",
@@ -73,6 +89,7 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.save_changes": "ذخیره تغییرات",
   "admin_panel.eyebrow": "مدیریت سرور",
   "admin_panel.game": "بازی",
+  "admin_panel.game_id": "شناسهٔ بازی",
   "admin_panel.games": "فهرست بازی‌ها",
   "admin_panel.health_subtitle": "وضعیت زندهٔ سرورهای بازی",
   "admin_panel.healthy": "سالم",
@@ -85,6 +102,8 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.logs": "گزارش رخدادها",
   "admin_panel.logs_unavailable": "بارگیری گزارش رخدادهای سرور ناموفق بود.",
   "admin_panel.load_failed": "بارگیری پنل مدیریت ناموفق بود.",
+  "admin_panel.connection_failed":
+    "ارتباط با سرور برقرار نشد؛ اتصال اینترنت و گواهی HTTPS را بررسی کنید.",
   "admin_panel.login_failed":
     "ورود ناموفق بود. اتصال را بررسی و دوباره تلاش کنید.",
   "admin_panel.login_not_configured": "ورود مدیر در این سرور تنظیم نشده است.",
@@ -131,6 +150,12 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.warn": "اخطار",
   "admin_panel.warning_count": "اخطارها: {count}",
   "admin_panel.no_reports": "گزارشی برای نمایش وجود ندارد.",
+  "admin_panel.ready_for_reports": "گزارش‌ها آماده‌اند",
+  "admin_panel.game_reference": "بازی {id}",
+  "admin_panel.worker_reference": "سرور {id}",
+  "admin_panel.account_key": "شناسهٔ حساب",
+  "admin_panel.offline_account": "حساب آفلاین",
+  "admin_panel.control_panel": "پنل مدیریت",
   "admin_panel.report_reason_abusive_language": "فحاشی یا الفاظ نامناسب",
   "admin_panel.report_reason_harassment": "آزار و تهدید",
   "admin_panel.report_reason_other": "مورد دیگر",
@@ -139,10 +164,10 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.reported_user": "کاربر گزارش‌شده",
   "admin_panel.reporter": "گزارش‌دهنده",
   "admin_panel.reports_memory_note":
-    "گزارش‌ها در حافظهٔ سرور ذخیره می‌شوند و پس از راه‌اندازی مجدد پاک خواهند شد.",
+    "گزارش‌ها در پایگاه‌دادهٔ سرور ذخیره می‌شوند و پس از راه‌اندازی مجدد باقی می‌مانند.",
   "admin_panel.reports": "گزارش‌ها",
   "admin_panel.reports_future_note":
-    "پس از اضافه‌شدن گزارش بازیکنان، صندوق گزارش‌ها به این بخش وصل می‌شود. فعلاً گزارشی ثبت نشده است.",
+    "گزارش‌های بازی و گفت‌وگوی عمومی از workerها جمع‌آوری و روی سرور ذخیره می‌شوند.",
   "admin_panel.refresh": "تازه‌سازی",
   "admin_panel.refreshing": "در حال تازه‌سازی…",
   "admin_panel.recent_players": "بازیکنان اخیر",
@@ -173,12 +198,16 @@ const translateText = (
   key: string,
   params?: Record<string, string | number>,
 ): string => {
+  const persianText = ADMIN_TEXT_FA[key];
+  if (persianText !== undefined) {
+    return persianText.replace(
+      /\{(\w+)\}/g,
+      (placeholder, name: string) => String(params?.[name] ?? placeholder),
+    );
+  }
   const translated = baseTranslateText(key, params);
   if (translated !== key) return translated;
-  return (ADMIN_TEXT_FA[key] ?? key).replace(
-    /\{(\w+)\}/g,
-    (placeholder, name: string) => String(params?.[name] ?? placeholder),
-  );
+  return key;
 };
 
 type AdminPlayer = {
@@ -187,6 +216,7 @@ type AdminPlayer = {
   username: string;
   spectator: boolean;
   platform: string;
+  registered: boolean;
 };
 
 type AdminGame = {
@@ -278,6 +308,17 @@ const ManagedCategorySchema = z.object({
 });
 type ManagedCategory = z.infer<typeof ManagedCategorySchema>;
 
+const ManagedInventoryItemSchema = z.object({
+  id: z.string(),
+  accountId: z.string(),
+  productId: z.string().nullable(),
+  name: z.string(),
+  description: z.string(),
+  grantedBy: z.string(),
+  createdAt: z.number(),
+});
+type ManagedInventoryItem = z.infer<typeof ManagedInventoryItemSchema>;
+
 const AdminTab =
   z.enum([
     "overview",
@@ -300,6 +341,9 @@ export class AdminPanel extends LitElement {
   @state() private systemLogsNotice: string | null = null;
   @state() private accountKeys: string[] = [];
   @state() private managedAccounts: ManagedAccount[] = [];
+  @state() private inventoryByAccount: Record<string, ManagedInventoryItem[]> =
+    {};
+  @state() private inventoryLoadingAccount: string | null = null;
   @state() private managedProducts: ManagedProduct[] = [];
   @state() private managedCategories: ManagedCategory[] = [];
   @state() private accountEditId: string | null = null;
@@ -941,6 +985,8 @@ export class AdminPanel extends LitElement {
         }
       </style>
       <main
+        dir="rtl"
+        lang="fa"
         class="grid min-h-screen place-items-center bg-[#0b0e14] px-4 text-slate-100"
       >
         <section
@@ -1028,6 +1074,9 @@ export class AdminPanel extends LitElement {
       <section
         class="overflow-hidden rounded-xl border border-white/[0.07] bg-[#111620]"
       >
+        <p class="border-b border-white/[0.07] px-5 py-3 text-xs leading-5 text-slate-400">
+          ${translateText("admin_panel.users_scope")}
+        </p>
         <header
           class="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4"
         >
@@ -1051,7 +1100,7 @@ export class AdminPanel extends LitElement {
           />
         </header>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[680px] text-left text-sm">
+          <table class="w-full min-w-[800px] text-left text-sm">
             <thead
               class="bg-white/[0.025] text-xs uppercase tracking-wider text-slate-500"
             >
@@ -1064,6 +1113,9 @@ export class AdminPanel extends LitElement {
                 </th>
                 <th class="px-5 py-3 font-medium">
                   ${translateText("admin_panel.status")}
+                </th>
+                <th class="px-5 py-3 font-medium">
+                  ${translateText("admin_panel.registered")}
                 </th>
                 <th class="px-5 py-3 font-medium">
                   ${translateText("admin_panel.platform")}
@@ -1101,6 +1153,11 @@ export class AdminPanel extends LitElement {
                       </span>
                     </td>
                     <td class="px-5 py-3.5 text-slate-400">
+                      ${player.registered
+                        ? translateText("admin_panel.registered")
+                        : translateText("admin_panel.guest")}
+                    </td>
+                    <td class="px-5 py-3.5 text-slate-400">
                       ${player.platform}
                     </td>
                     <td class="px-5 py-3.5 text-right">
@@ -1127,7 +1184,7 @@ export class AdminPanel extends LitElement {
               ${entries.length === 0
                 ? html`<tr>
                     <td
-                      colspan="5"
+                      colspan="6"
                       class="px-5 py-12 text-center text-slate-500"
                     >
                       ${translateText("admin_panel.no_players")}
@@ -1154,7 +1211,7 @@ export class AdminPanel extends LitElement {
             class="bg-white/[0.025] text-xs uppercase tracking-wider text-slate-500"
           >
             <tr>
-              <th class="px-5 py-3">Game ID</th>
+              <th class="px-5 py-3">${translateText("admin_panel.game_id")}</th>
               <th class="px-5 py-3">${translateText("admin_panel.status")}</th>
               <th class="px-5 py-3">${translateText("admin_panel.game")}</th>
               <th class="px-5 py-3">${translateText("admin_panel.worker")}</th>
@@ -1229,7 +1286,9 @@ export class AdminPanel extends LitElement {
                 <th class="px-5 py-3">
                   ${translateText("admin_panel.player")}
                 </th>
-                <th class="px-5 py-3">Account key</th>
+                <th class="px-5 py-3">
+                  ${translateText("admin_panel.account_key")}
+                </th>
                 <th class="px-5 py-3 text-right">
                   ${translateText("admin_panel.actions")}
                 </th>
@@ -1240,7 +1299,8 @@ export class AdminPanel extends LitElement {
                 (accountKey) => html`
                   <tr>
                     <td class="px-5 py-3 text-slate-200">
-                      ${players.get(accountKey) ?? "Offline account"}
+                      ${players.get(accountKey) ??
+                      translateText("admin_panel.offline_account")}
                     </td>
                     <td class="px-5 py-3 font-mono text-xs text-slate-500">
                       ${accountKey.slice(0, 16)}…
@@ -1304,12 +1364,16 @@ export class AdminPanel extends LitElement {
                       </span>
                       <span class="text-xs text-slate-500"
                         >${report.source === "game" && report.gameID
-                          ? `Game ${report.gameID}`
-                          : `Worker ${report.workerId}`}</span
+                          ? translateText("admin_panel.game_reference", {
+                              id: report.gameID,
+                            })
+                          : translateText("admin_panel.worker_reference", {
+                              id: report.workerId,
+                            })}</span
                       >
                     </div>
                     <time class="text-xs text-slate-500"
-                      >${new Date(report.createdAt).toLocaleString()}</time
+                      >${new Date(report.createdAt).toLocaleString("fa-IR")}</time
                     >
                   </header>
                   <div class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -1351,6 +1415,55 @@ export class AdminPanel extends LitElement {
             )}
       </section>
     `;
+  }
+
+  private async toggleAccountInventory(account: ManagedAccount) {
+    if (Object.prototype.hasOwnProperty.call(this.inventoryByAccount, account.id)) {
+      const next = { ...this.inventoryByAccount };
+      delete next[account.id];
+      this.inventoryByAccount = next;
+      return;
+    }
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (!token) return this.signOut();
+    this.inventoryLoadingAccount = account.id;
+    this.error = null;
+    try {
+      const { base } = await this.apiBase();
+      const response = await fetch(
+        `${base}/w0/api/admin/accounts/${encodeURIComponent(account.id)}/inventory`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (response.status === 401) {
+        sessionStorage.removeItem(SESSION_KEY);
+        this.loggedIn = false;
+        throw new Error(translateText("admin_panel.session_expired"));
+      }
+      if (!response.ok) {
+        throw new Error(
+          translateText("admin_panel.action_failed", {
+            status: response.status,
+          }),
+        );
+      }
+      const parsed = z
+        .object({ items: z.array(ManagedInventoryItemSchema) })
+        .safeParse(await response.json());
+      if (!parsed.success) {
+        throw new Error(translateText("admin_panel.inventory_load_failed"));
+      }
+      this.inventoryByAccount = {
+        ...this.inventoryByAccount,
+        [account.id]: parsed.data.items,
+      };
+    } catch (error) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : translateText("admin_panel.inventory_load_failed");
+    } finally {
+      this.inventoryLoadingAccount = null;
+    }
   }
 
   private resetAccountDraft() {
@@ -1673,6 +1786,11 @@ export class AdminPanel extends LitElement {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.removeItem(SESSION_KEY);
+          this.loggedIn = false;
+          throw new Error(translateText("admin_panel.session_expired"));
+        }
         throw new Error(
           translateText("admin_panel.action_failed", {
             status: response.status,
@@ -1683,8 +1801,11 @@ export class AdminPanel extends LitElement {
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = "openfront-admin-export.json";
+      anchor.style.display = "none";
+      document.body.append(anchor);
       anchor.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
     } catch (error) {
       this.error =
         error instanceof Error
@@ -1920,6 +2041,9 @@ export class AdminPanel extends LitElement {
 
   private renderManagedAccounts() {
     return html`<section class="space-y-5">
+      <p class="rounded-lg border border-sky-400/15 bg-sky-400/[.04] p-3 text-xs leading-5 text-slate-300">
+        ${translateText("admin_panel.accounts_scope")}
+      </p>
       <div class="flex justify-end">
         <button
           class="rounded-lg border border-sky-400/30 px-4 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-400/10"
@@ -2012,7 +2136,9 @@ export class AdminPanel extends LitElement {
                     ? translateText("admin_panel.banned")
                     : account.bannedUntil && account.bannedUntil > Date.now()
                       ? translateText("admin_panel.banned_until", {
-                          time: new Date(account.bannedUntil).toLocaleString(),
+                          time: new Date(account.bannedUntil).toLocaleString(
+                            "fa-IR",
+                          ),
                         })
                       : translateText("admin_panel.active")}
                   <div class="text-xs text-slate-500">
@@ -2025,8 +2151,52 @@ export class AdminPanel extends LitElement {
                       count: account.inventoryCount,
                     })}
                   </div>
+                  <button
+                    class="mt-1 text-xs text-sky-300 hover:text-sky-100"
+                    ?disabled=${this.inventoryLoadingAccount === account.id}
+                    @click=${() => void this.toggleAccountInventory(account)}
+                  >
+                    ${this.inventoryLoadingAccount === account.id
+                      ? translateText("admin_panel.refreshing")
+                      : Object.prototype.hasOwnProperty.call(
+                            this.inventoryByAccount,
+                            account.id,
+                          )
+                        ? translateText("admin_panel.inventory_hide")
+                        : translateText("admin_panel.inventory_items")}
+                  </button>
+                  ${Object.prototype.hasOwnProperty.call(
+                    this.inventoryByAccount,
+                    account.id,
+                  )
+                    ? html`<ul class="mt-2 space-y-2 border-r border-white/10 pr-2 text-xs">
+                        ${(this.inventoryByAccount[account.id] ?? []).map(
+                          (item) => html`<li class="text-slate-300">
+                            <strong>${item.name}</strong>
+                            <div class="text-slate-500">
+                              ${translateText("admin_panel.inventory_granted_by", {
+                                name: item.grantedBy,
+                              })}
+                            </div>
+                            <div class="text-slate-500">
+                              ${translateText("admin_panel.inventory_date", {
+                                time: new Date(item.createdAt).toLocaleString(
+                                  "fa-IR",
+                                ),
+                              })}
+                            </div>
+                          </li>`,
+                        )}
+                        ${(this.inventoryByAccount[account.id] ?? []).length ===
+                        0
+                          ? html`<li class="text-slate-500">
+                              ${translateText("admin_panel.inventory_empty")}
+                            </li>`
+                          : nothing}
+                      </ul>`
+                    : nothing}
                 </td>
-                <td class="px-4 py-3 text-slate-500">${new Date(account.createdAt).toLocaleDateString()}</td>
+                <td class="px-4 py-3 text-slate-500">${new Date(account.createdAt).toLocaleDateString("fa-IR")}</td>
                 <td class="px-4 py-3">
                   <div class="flex justify-end gap-2">
                     <button class="rounded border border-sky-400/20 px-2 py-1 text-xs text-sky-200" ?disabled=${this.submitting} @click=${() => void this.grantProductToAccount(account)}>${translateText("admin_panel.grant_product")}</button>
@@ -2123,6 +2293,7 @@ export class AdminPanel extends LitElement {
           : ""}
       </div>
       <p class="text-xs text-slate-500">${translateText("admin_panel.product_image_note")}</p>
+      <p class="text-xs text-amber-200/80">${translateText("admin_panel.purchase_link_note")}</p>
     </section>`;
   }
 
@@ -2184,7 +2355,7 @@ export class AdminPanel extends LitElement {
                 (entry) => html`
                   <tr class="align-top hover:bg-white/[0.025]">
                     <td class="whitespace-nowrap px-4 py-3 text-slate-500">
-                      ${new Date(entry.timestamp).toLocaleString()}
+                      ${new Date(entry.timestamp).toLocaleString("fa-IR")}
                     </td>
                     <td class="px-4 py-3 uppercase text-amber-200">
                       ${entry.level}
@@ -2451,7 +2622,7 @@ export class AdminPanel extends LitElement {
           box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
         }
       </style>
-      <div class="flex min-h-screen bg-gradient-to-br from-[#111a25] via-[#0b0e14] to-[#07090d] text-slate-100">
+      <div dir="rtl" lang="fa" class="flex min-h-screen bg-gradient-to-br from-[#111a25] via-[#0b0e14] to-[#07090d] text-slate-100">
         <aside
           class="hidden w-60 shrink-0 border-r border-white/[0.07] bg-[#0e121a] px-3 py-5 shadow-[8px_0_28px_rgba(0,0,0,.3)] md:flex md:flex-col"
         >
@@ -2464,7 +2635,7 @@ export class AdminPanel extends LitElement {
             <div>
               <p class="text-sm font-bold">${translateText("admin_panel.brand_name")}</p>
               <p class="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                Control panel
+                ${translateText("admin_panel.control_panel")}
               </p>
             </div>
           </div>
@@ -2536,7 +2707,9 @@ export class AdminPanel extends LitElement {
               <span class="hidden text-xs text-slate-500 sm:inline"
                 >${this.lastUpdated
                   ? translateText("admin_panel.last_updated", {
-                      time: new Date(this.lastUpdated).toLocaleTimeString(),
+                      time: new Date(this.lastUpdated).toLocaleTimeString(
+                        "fa-IR",
+                      ),
                     })
                   : ""}</span
               >

@@ -383,6 +383,7 @@ describe("admin panel login and sessions", () => {
     );
     const exported = await exportResponse.json();
     expect(exported).toMatchObject({
+      gameAccountBanKeys: [],
       accounts: [{ id: account.id, username: "ExportedUser" }],
       accountCredentials: [
         {
@@ -457,6 +458,25 @@ describe("admin panel login and sessions", () => {
       item: { accountId: account.id, productId: product.id, name: "Welcome pack" },
     });
     expect(store.getAccount(account.id)?.inventoryCount).toBe(1);
+    const inventory = await fetch(
+      `${baseUrl}/api/admin/accounts/${account.id}/inventory`,
+      { headers: { Authorization: headers.Authorization } },
+    );
+    expect(inventory.status).toBe(200);
+    expect(await inventory.json()).toMatchObject({
+      items: [
+        {
+          accountId: account.id,
+          productId: product.id,
+          name: "Welcome pack",
+          grantedBy: "TestAdmin",
+        },
+      ],
+    });
+    const unauthorizedInventory = await fetch(
+      `${baseUrl}/api/admin/accounts/${account.id}/inventory`,
+    );
+    expect(unauthorizedInventory.status).toBe(401);
     const deleteCategory = await fetch(
       `${baseUrl}/api/admin/categories/${category.id}`,
       { method: "DELETE", headers },

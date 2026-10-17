@@ -28,6 +28,13 @@ export class LocalAccountLoginUnavailableError extends Error {
   }
 }
 
+export class LocalPhoneAuthError extends Error {
+  constructor(readonly status: number) {
+    super("Phone authentication request failed");
+    this.name = "LocalPhoneAuthError";
+  }
+}
+
 const PERSISTENT_ID_KEY = "player_persistent_id";
 const LOCAL_ACCOUNT_TOKEN_KEY = "local_account_access_token";
 
@@ -321,16 +328,102 @@ export async function loginLocalAccount(
   if (!parsed.success) {
     throw new Error("Invalid local account login response");
   }
-  __jwt = parsed.data.token;
-  __expiresAt = Date.now() + parsed.data.expiresIn * 1000;
-  localStorage.setItem(LOCAL_ACCOUNT_TOKEN_KEY, parsed.data.token);
-  localStorage.setItem(PERSISTENT_ID_KEY, parsed.data.user.player.publicId);
-  UserSettings.setPlayerId(parsed.data.user.player.publicId);
+  return saveLocalAccountSession(parsed.data);
+}
+
+export async function requestLocalPhoneCode(
+  phone: string,
+  purpose: "login" | "register",
+): Promise<void> {
+  const response = await fetch(localAccountApiUrl("/phone/request-code"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new LocalPhoneAuthError(response.status);
+  const parsed = z
+    .object({ expiresIn: z.number().int().positive() })
+    .safeParse(await response.json());
+  if (!parsed.success) throw new Error("Invalid phone verification response");
+}
+
+export async function isLocalPhoneSignupEnabled(): Promise<boolean> {
+  const response = await fetch(localAccountApiUrl("/auth-options"), {
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error("Could not load local account options");
+  }
+  const parsed = z
+    .object({ phoneSignupEnabled: z.boolean() })
+    .safeParse(await response.json());
+  if (!parsed.success) {
+    throw new Error("Invalid local account options response");
+  }
+  return parsed.data.phoneSignupEnabled;
+}
+
+export async function loginLocalAccountByPhone(
+  phone: string,
+  code: string,
+): Promise<UserMeResponse> {
+  return completeLocalPhoneAuth("/phone/login", { phone, code });
+}
+
+export async function registerLocalAccountByPhone(
+  phone: string,
+  code: string,
+  username: string,
+  password: string,
+): Promise<UserMeResponse> {
+  return completeLocalPhoneAuth("/phone/register", {
+    phone,
+    code,
+    username,
+    password,
+  });
+}
+
+async function completeLocalPhoneAuth(
+  path: string,
+  body: Record<string, string>,
+): Promise<UserMeResponse> {
+  const response = await fetch(localAccountApiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new LocalPhoneAuthError(response.status);
+  const parsed = z
+    .object({
+      token: z.string().min(1),
+      expiresIn: z.number().int().positive(),
+      user: UserMeResponseSchema,
+    })
+    .safeParse(await response.json());
+  if (!parsed.success) {
+    throw new Error("Invalid local phone authentication response");
+  }
+  return saveLocalAccountSession(parsed.data);
+}
+
+function saveLocalAccountSession(session: {
+  token: string;
+  expiresIn: number;
+  user: UserMeResponse;
+}): UserMeResponse {
+  __jwt = session.token;
+  __expiresAt = Date.now() + session.expiresIn * 1000;
+  localStorage.setItem(LOCAL_ACCOUNT_TOKEN_KEY, session.token);
+  localStorage.setItem(PERSISTENT_ID_KEY, session.user.player.publicId);
+  UserSettings.setPlayerId(session.user.player.publicId);
   settlePendingSession();
   document.dispatchEvent(
     new CustomEvent("local-account-signed-in", { bubbles: true }),
   );
-  return parsed.data.user;
+  return session.user;
 }
 
 export async function logOut(allSessions: boolean = false): Promise<boolean> {

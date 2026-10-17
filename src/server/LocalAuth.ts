@@ -1,10 +1,10 @@
-import { randomUUID, scryptSync, timingSafeEqual } from "crypto";
-import { base64urlToUuid, uuidToBase64url } from "@openfront/shared/Base64";
 import {
   TokenPayload,
   TokenPayloadSchema,
   UserMeResponse,
 } from "@openfront/shared/ApiSchemas";
+import { base64urlToUuid, uuidToBase64url } from "@openfront/shared/Base64";
+import { createHmac, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 import { decodeJwt, jwtVerify, SignJWT } from "jose";
 import { getLocalDataStore, LocalDataStore } from "./LocalDataStore";
 import { ServerEnv } from "./ServerEnv";
@@ -18,6 +18,16 @@ function secret(): Uint8Array {
     throw new Error("LOCAL_AUTH_SECRET must be at least 32 characters");
   }
   return ENCODER.encode(value);
+}
+
+export function hashLocalPhoneVerificationCode(
+  mobile: string,
+  purpose: "login" | "register",
+  code: string,
+): string {
+  return createHmac("sha256", secret())
+    .update(`${mobile}\0${purpose}\0${code}`)
+    .digest("hex");
 }
 
 export function hashLocalPassword(password: string): {
@@ -42,7 +52,11 @@ export function localPasswordMatches(
     return false;
   }
   const expected = Buffer.from(hashHex, "hex");
-  const actual = scryptSync(password, Buffer.from(saltHex, "hex"), expected.length);
+  const actual = scryptSync(
+    password,
+    Buffer.from(saltHex, "hex"),
+    expected.length,
+  );
   return timingSafeEqual(actual, expected);
 }
 
