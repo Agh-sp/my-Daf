@@ -211,4 +211,22 @@ describe("WinModal pattern promotion", () => {
       delete window.openfrontDesktop;
     }
   });
+
+  it("always shows the donation link when the game ends", async () => {
+    modal = document.createElement("win-modal") as WinModal;
+    Object.assign(modal as unknown as { rand: number; isWin: boolean }, {
+      rand: 0.75,
+      isWin: false,
+      isVisible: true,
+    });
+    document.body.appendChild(modal);
+    await modal.updateComplete;
+
+    const donationLink = modal.querySelector<HTMLAnchorElement>(
+      'a[href="https://daramet.com/middleeastdefense"]',
+    );
+    expect(donationLink).not.toBeNull();
+    expect(donationLink?.target).toBe("_blank");
+    expect(donationLink?.rel).toContain("noopener");
+  });
 });

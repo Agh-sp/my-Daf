@@ -1,6 +1,12 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import type { LangSelector } from "./LangSelector";
 import { translateText } from "./Utils";
+
+type StartingTextKey =
+  | "game_starting_modal.attribution"
+  | "game_starting_modal.connecting"
+  | "game_starting_modal.subtitle";
 
 @customElement("game-starting-modal")
 export class GameStartingModal extends LitElement {
@@ -9,6 +15,20 @@ export class GameStartingModal extends LitElement {
 
   createRenderRoot() {
     return this;
+  }
+
+  private text(key: StartingTextKey, persianText: string): string {
+    const language = document.querySelector<LangSelector>("lang-selector")
+      ?.currentLang;
+    if (language?.split("-")[0] === "fa") return persianText;
+
+    return translateText(
+      key,
+      undefined,
+      key === "game_starting_modal.attribution"
+        ? { preserveOpenFront: true }
+        : undefined,
+    );
   }
 
   render() {
@@ -57,7 +77,10 @@ export class GameStartingModal extends LitElement {
         <p
           class="relative mb-2 text-[10px] font-bold uppercase tracking-[0.3em] text-cyan-200/70"
         >
-          ${translateText("game_starting_modal.connecting")}
+          ${this.text(
+            "game_starting_modal.connecting",
+            "در حال آماده‌سازی میدان نبرد",
+          )}
         </p>
         <p
           id="game-starting-title"
@@ -66,7 +89,18 @@ export class GameStartingModal extends LitElement {
           ${translateText("game_starting_modal.title")}
         </p>
         <p class="relative mt-3 text-sm leading-6 text-slate-300">
-          ${translateText("game_starting_modal.subtitle")}
+          ${this.text(
+            "game_starting_modal.subtitle",
+            "در حال اتصال به بازی و هماهنگ‌سازی بازیکنان...",
+          )}
+        </p>
+        <p
+          class="relative mt-4 border-t border-white/10 pt-4 text-xs leading-6 text-slate-400"
+        >
+          ${this.text(
+            "game_starting_modal.attribution",
+            "دفاع خاورمیانه با الهام از پروژهٔ متن‌باز OpenFront ساخته شده؛ اما تجربه‌ای مستقل، متفاوت و نوآورانه با ویژگی‌های مدرن است. با سپاس از مشارکت‌کنندگان OpenFront.",
+          )}
         </p>
         <div
           class="relative mt-7 h-1.5 overflow-hidden rounded-full bg-white/10"

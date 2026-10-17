@@ -171,6 +171,11 @@ describe("admin panel login and sessions", () => {
     expect(maintenance.status).toBe(200);
     expect(await maintenance.json()).toEqual({ maintenanceMode: true });
     expect(maintenanceMode).toBe(true);
+    expect(store.getMaintenanceMode()).toBe(true);
+
+    const reopenedStore = new LocalDataStore(dataDirectory);
+    expect(reopenedStore.getMaintenanceMode()).toBe(true);
+    reopenedStore.close();
   });
 
   it("reports host memory separately from Node.js process memory", async () => {
@@ -362,17 +367,34 @@ describe("admin panel login and sessions", () => {
         reason: "other",
       },
     ];
+    store.saveReports([
+      {
+        id: "game-2:report-1",
+        source: "game",
+        workerId: 1,
+        createdAt: Date.now() + 1,
+        reportedBy: { username: "Other reporter" },
+        reported: { username: "Other user" },
+        reason: "spam",
+      },
+    ]);
 
     const firstRead = await fetch(`${baseUrl}/api/admin/reports`, { headers });
     expect(await firstRead.json()).toMatchObject({
-      reports: [{ id: "game-1:report-1" }],
+      reports: [
+        { id: "game-2:report-1", workerId: 1 },
+        { id: "game-1:report-1" },
+      ],
     });
     reports = [];
     const afterRestartLikeRead = await fetch(`${baseUrl}/api/admin/reports`, {
       headers,
     });
     expect(await afterRestartLikeRead.json()).toMatchObject({
-      reports: [{ id: "game-1:report-1" }],
+      reports: [
+        { id: "game-2:report-1", workerId: 1 },
+        { id: "game-1:report-1" },
+      ],
     });
 
     const exportResponse = await fetch(`${baseUrl}/api/admin/export`, {

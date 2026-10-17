@@ -13,6 +13,15 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.guest": "مهمان / بدون حساب",
   "admin_panel.accounts_scope":
     "این فهرست فقط حساب‌های محلی همین بازی را نشان می‌دهد؛ بازیکنان آنلاین در بخش «کاربران» دیده می‌شوند. فهرست حساب‌های سامانهٔ اصلی از API جداگانه می‌آید.",
+  "admin_panel.local_accounts_in_users":
+    "حساب‌های محلی روی سرور (آنلاین یا آفلاین)",
+  "admin_panel.account_status_active": "فعال",
+  "admin_panel.account_status_banned": "مسدود",
+  "admin_panel.no_local_accounts": "حساب محلی ثبت‌شده‌ای وجود ندارد.",
+  "admin_panel.local_account_count": "{count} حساب محلی",
+  "admin_panel.worker_unavailable":
+    "اتصال به ورکر {worker} برقرار نشد؛ داده‌های آن ورکر ممکن است ناقص باشد.",
+  "admin_panel.workers_partial_health": "اختلال در اتصال بعضی ورکرها",
   "admin_panel.account_password_required": "رمز عبور باید حداقل ۸ نویسه باشد.",
   "admin_panel.active_games": "بازی‌های فعال",
   "admin_panel.active": "فعال",
@@ -158,9 +167,13 @@ const ADMIN_TEXT_FA: Record<string, string> = {
   "admin_panel.offline_account": "حساب آفلاین",
   "admin_panel.control_panel": "پنل مدیریت",
   "admin_panel.report_reason_abusive_language": "فحاشی یا الفاظ نامناسب",
+  "admin_panel.report_reason_botting": "استفاده از ربات یا تقلب",
+  "admin_panel.report_reason_griefing": "اخلال عمدی در بازی",
   "admin_panel.report_reason_harassment": "آزار و تهدید",
+  "admin_panel.report_reason_inappropriate_username": "نام کاربری نامناسب",
   "admin_panel.report_reason_other": "مورد دیگر",
   "admin_panel.report_reason_spam": "هرزنامه",
+  "admin_panel.report_reason_teaming": "همکاری غیرمجاز",
   "admin_panel.reported_message": "پیام گزارش‌شده",
   "admin_panel.reported_user": "کاربر گزارش‌شده",
   "admin_panel.reporter": "گزارش‌دهنده",
@@ -260,7 +273,7 @@ const AdminLogSchema = z.object({
 });
 type AdminLog = z.infer<typeof AdminLogSchema> & { workerId: number };
 
-const AdminChatReportSchema = z.object({
+export const AdminChatReportSchema = z.object({
   id: z.string(),
   messageId: z.string().optional(),
   source: z.enum(["chat", "game"]).optional(),
@@ -276,8 +289,18 @@ const AdminChatReportSchema = z.object({
     username: z.string(),
   }),
   message: z.string().optional(),
-  reason: z.enum(["abusive_language", "harassment", "spam", "other"]),
+  reason: z.enum([
+    "abusive_language",
+    "harassment",
+    "spam",
+    "other",
+    "botting",
+    "teaming",
+    "inappropriate_username",
+    "griefing",
+  ]),
   createdAt: z.number(),
+  workerId: z.number().optional(),
 });
 
 type AdminChatReport = z.infer<typeof AdminChatReportSchema> & {
@@ -350,6 +373,7 @@ const SESSION_KEY = "openfront_admin_session";
 @customElement("admin-panel")
 export class AdminPanel extends LitElement {
   @state() private overviews: AdminWorkerOverview[] = [];
+  @state() private unavailableWorkers: number[] = [];
   @state() private reports: AdminChatReport[] = [];
   @state() private logs: AdminLog[] = [];
   @state() private systemLogsNotice: string | null = null;
@@ -517,15 +541,24 @@ export class AdminPanel extends LitElement {
       const availableWorkerIds = results.flatMap((result, workerId) =>
         result.status === "fulfilled" ? [workerId] : [],
       );
-      const workerFailures = results.flatMap((result) =>
-        result.status === "rejected"
-          ? [
-              result.reason instanceof Error
-                ? result.reason.message
-                : translateText("admin_panel.load_failed"),
-            ]
-          : [],
+      this.unavailableWorkers = results.flatMap((result, workerId) =>
+        result.status === "rejected" ? [workerId] : [],
       );
+      const workerFailures = results.flatMap((result, workerId) => {
+        if (result.status !== "rejected") return [];
+        if (result.reason instanceof TypeError) {
+          return [
+            translateText("admin_panel.worker_unavailable", {
+              worker: workerId,
+            }),
+          ];
+        }
+        return [
+          result.reason instanceof Error
+            ? result.reason.message
+            : translateText("admin_panel.load_failed"),
+        ];
+      });
       if (availableWorkerIds.length === 0) {
         throw new Error(
           workerFailures[0] ?? translateText("admin_panel.load_failed"),
@@ -535,10 +568,11 @@ export class AdminPanel extends LitElement {
         result.status === "fulfilled" ? [result.value] : [],
       );
       this.error = workerFailures.length > 0 ? workerFailures.join(" ") : null;
+      const sharedDataWorkerIds = availableWorkerIds.slice(0, 1);
       const [reports, logs, accountKeys, localData] = await Promise.all([
         this.fetchReports(base, availableWorkerIds, token),
-        this.fetchLogs(base, availableWorkerIds, token),
-        this.fetchBans(base, availableWorkerIds, token),
+        this.fetchLogs(base, sharedDataWorkerIds, token),
+        this.fetchBans(base, sharedDataWorkerIds, token),
         this.fetchLocalAdminData(base, token),
       ]);
       this.reports = reports;
@@ -558,6 +592,7 @@ export class AdminPanel extends LitElement {
           ? error.message
           : translateText("admin_panel.load_failed");
       this.overviews = [];
+      this.unavailableWorkers = [];
       this.reports = [];
       this.logs = [];
       this.accountKeys = [];
@@ -606,10 +641,19 @@ export class AdminPanel extends LitElement {
             }),
           );
         }
-        return parsedReports.data.map((report) => ({ ...report, workerId }));
+        return parsedReports.data.map((report) => ({
+          ...report,
+          workerId: report.workerId ?? workerId,
+        }));
       }),
     );
-    return perWorker.flat().sort((a, b) => b.createdAt - a.createdAt);
+    const reportsById = new Map<string, AdminChatReport>();
+    for (const report of perWorker.flat()) {
+      reportsById.set(report.id, report);
+    }
+    return [...reportsById.values()].sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
   }
 
   private async fetchLogs(
@@ -1113,10 +1157,16 @@ export class AdminPanel extends LitElement {
 
   private renderUsers() {
     const entries = this.filteredPlayers();
+    const accountQuery = this.search.trim().toLocaleLowerCase();
+    const accounts = this.managedAccounts.filter(
+      (account) =>
+        !accountQuery ||
+        account.username.toLocaleLowerCase().includes(accountQuery) ||
+        (account.phone ?? "").toLocaleLowerCase().includes(accountQuery),
+    );
     return html`
-      <section
-        class="overflow-hidden rounded-xl border border-white/[0.07] bg-[#111620]"
-      >
+      <section class="space-y-5">
+        <section class="overflow-hidden rounded-xl border border-white/[0.07] bg-[#111620]">
         <p class="border-b border-white/[0.07] px-5 py-3 text-xs leading-5 text-slate-400">
           ${translateText("admin_panel.users_scope")}
         </p>
@@ -1237,6 +1287,40 @@ export class AdminPanel extends LitElement {
             </tbody>
           </table>
         </div>
+      </section>
+      <section class="overflow-hidden rounded-xl border border-white/[0.07] bg-[#111620]">
+        <header class="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+          <h2 class="font-semibold text-slate-100">${translateText("admin_panel.local_accounts_in_users")}</h2>
+          <span class="text-xs text-slate-500">${translateText("admin_panel.local_account_count", { count: accounts.length })}</span>
+        </header>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-left text-sm">
+            <thead class="bg-white/[0.025] text-xs text-slate-500">
+              <tr>
+                <th class="px-5 py-3">${translateText("admin_panel.username")}</th>
+                <th class="px-5 py-3">${translateText("admin_panel.phone")}</th>
+                <th class="px-5 py-3">${translateText("admin_panel.status")}</th>
+                <th class="px-5 py-3">${translateText("admin_panel.created")}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/[0.06]">
+              ${accounts.map((account) => html`<tr>
+                <td class="px-5 py-3 text-slate-200">${account.username}</td>
+                <td class="px-5 py-3 text-slate-400">${account.phone ?? "—"}</td>
+                <td class="px-5 py-3 ${account.banned || (account.bannedUntil ?? 0) > Date.now() ? "text-rose-300" : "text-emerald-300"}">
+                  ${account.banned || (account.bannedUntil ?? 0) > Date.now()
+                    ? translateText("admin_panel.account_status_banned")
+                    : translateText("admin_panel.account_status_active")}
+                </td>
+                <td class="px-5 py-3 text-slate-500">${new Date(account.createdAt).toLocaleDateString("fa-IR")}</td>
+              </tr>`)}
+              ${accounts.length === 0
+                ? html`<tr><td colspan="4" class="px-5 py-8 text-center text-slate-500">${translateText("admin_panel.no_local_accounts")}</td></tr>`
+                : nothing}
+            </tbody>
+          </table>
+        </div>
+      </section>
       </section>
     `;
   }
@@ -2511,11 +2595,13 @@ export class AdminPanel extends LitElement {
                           </p>
                         </div>
                         <span
-                          class="inline-flex items-center gap-2 text-xs text-emerald-300"
+                          class="inline-flex items-center gap-2 text-xs ${this.unavailableWorkers.length > 0 ? "text-rose-300" : "text-emerald-300"}"
                           ><span
-                            class="size-1.5 rounded-full bg-emerald-400"
+                            class="size-1.5 rounded-full ${this.unavailableWorkers.length > 0 ? "bg-rose-400" : "bg-emerald-400"}"
                           ></span
-                          >${translateText("admin_panel.healthy")}</span
+                          >${this.unavailableWorkers.length > 0
+                            ? translateText("admin_panel.workers_partial_health")
+                            : translateText("admin_panel.healthy")}</span
                         >
                       </header>
                       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

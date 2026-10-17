@@ -33,6 +33,9 @@ vi.mock("../../../../src/client/InGameModal", () => ({
   showInGameConfirm: vi.fn(),
   showInGameAlert: vi.fn(),
 }));
+vi.mock("../../../../src/client/hud/layers/TradeDealModal", () => ({
+  TradeDealModal: class {},
+}));
 
 import {
   AllPlayers,
@@ -43,6 +46,7 @@ import { flattenedEmojiTable } from "@openfront/engine-api/Schemas";
 import { EventBus } from "@openfront/shared/EventBus";
 import { actionButton } from "../../../../src/client/components/ui/ActionButton";
 import { PlayerPanel } from "../../../../src/client/hud/layers/PlayerPanel";
+import { translateText } from "../../../../src/client/Utils";
 import {
   SendEmbargoIntentEvent,
   SendEmojiIntentEvent,
@@ -126,6 +130,30 @@ describe("PlayerPanel - embargo intents", () => {
     expect(events[0].target).toBe(other);
     expect(events[0].action).toBe("stop");
     expect(panel.isVisible).toBe(false);
+  });
+
+  test("trading status is stopped when either player has embargoed the other", () => {
+    const ownPlayer = {
+      ...my,
+      hasEmbargoAgainst: vi.fn(() => true),
+    } as unknown as PlayerView;
+    const otherPlayer = {
+      ...other,
+      hasEmbargoAgainst: vi.fn(() => false),
+      betrayals: vi.fn(() => 0),
+    } as unknown as PlayerView;
+
+    vi.mocked(translateText).mockClear();
+    (panel as any).renderStats(otherPlayer, ownPlayer);
+
+    expect(translateText).toHaveBeenCalledWith("player_panel.stopped");
+
+    vi.mocked(translateText).mockClear();
+    ownPlayer.hasEmbargoAgainst = vi.fn(() => false);
+    otherPlayer.hasEmbargoAgainst = vi.fn(() => true);
+    (panel as any).renderStats(otherPlayer, ownPlayer);
+
+    expect(translateText).toHaveBeenCalledWith("player_panel.stopped");
   });
 });
 

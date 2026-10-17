@@ -91,7 +91,7 @@ export async function startWorker() {
   setAdminLogPersistence((entry) => localDataStore.appendAdminLog(entry));
   const gm = new GameManager(log, telemetry, buildHash, (report) => {
     localDataStore.saveReports([{ ...report, workerId }]);
-  });
+  }, localDataStore.getMaintenanceMode());
   const adminBanStore = new AdminBanStore(workerId, ServerEnv.numWorkers());
   server.on("close", () => telemetry.stop());
 

@@ -77,8 +77,11 @@ describe("snapshot: land attacks", () => {
     game.addExecution(new RetreatExecution(a, attack.id()));
     executeTicks(game, 2);
     expect(attack.retreating()).toBe(true);
+    expect(attack.retreated()).toBe(true);
     // Runs through the retreat landing.
     await expectSnapshotRoundTrip(game, MAP, 40);
+    executeTicks(game, 1);
+    expect(a.outgoingAttacks()).not.toContain(attack);
   });
 });
 

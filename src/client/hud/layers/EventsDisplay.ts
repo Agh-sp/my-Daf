@@ -79,6 +79,7 @@ export class EventsDisplay extends LitElement implements Controller {
 
   private active: boolean = false;
   private events: GameEvent[] = [];
+  private reportedWarPairs = new Set<string>();
   private userSettings = new UserSettings();
 
   @state() private _isVisible: boolean = false;
@@ -283,31 +284,33 @@ export class EventsDisplay extends LitElement implements Controller {
       this.requestUpdate();
     }
 
-    for (const attack of myPlayer.incomingAttacks()) {
-      const attackerSmallID = attack.attackerID;
-      const attacker = this.game.playerBySmallID(attackerSmallID);
-      if (!attacker.isPlayer()) continue;
-      const attackerView = attacker as PlayerView;
-      if (myPlayer.isFriendly(attackerView)) continue;
+    const activeWarPairs = new Set<string>();
+    for (const defender of this.game.players()) {
+      for (const attack of defender.incomingAttacks()) {
+        const attacker = this.game.playerBySmallID(attack.attackerID);
+        if (!attacker.isPlayer()) continue;
+        const attackerView = attacker as PlayerView;
+        if (defender.isFriendly(attackerView)) continue;
 
-      const attackerID = attackerView.smallID();
-      const alreadyReported = this.events.some(
-        (event) =>
-          event.type === MessageType.ATTACK_REQUEST &&
-          event.focusID === attackerID,
-      );
-      if (!alreadyReported) {
+        const warPair = `${attackerView.smallID()}:${defender.smallID()}`;
+        const alreadyReported =
+          activeWarPairs.has(warPair) || this.reportedWarPairs.has(warPair);
+        activeWarPairs.add(warPair);
+        if (alreadyReported) continue;
+
         this.addEvent({
-          description: translateText("events_display.land_attack_inbound", {
-            name: attackerView.displayName(),
+          description: translateText("events_display.war_report_attack", {
+            attacker: attackerView.displayName(),
+            defender: defender.displayName(),
           }),
           type: MessageType.ATTACK_REQUEST,
           createdAt: this.game.ticks(),
-          focusID: attackerID,
+          focusID: defender.smallID(),
           duration: 100,
         });
       }
     }
+    this.reportedWarPairs = activeWarPairs;
 
     this.requestUpdate();
   }

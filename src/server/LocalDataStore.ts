@@ -178,6 +178,11 @@ export class LocalDataStore {
         message TEXT NOT NULL,
         metadata TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS admin_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
     `);
     this.ensureColumn("local_accounts", "banned_until", "INTEGER");
     this.ensureColumn(
@@ -406,6 +411,25 @@ export class LocalDataStore {
     ).map(accountFromRow);
   }
 
+  getMaintenanceMode(): boolean {
+    const row = this.db
+      .prepare("SELECT value FROM admin_settings WHERE key = ?")
+      .get("maintenance_mode") as { value: string } | undefined;
+    return row?.value === "true";
+  }
+
+  setMaintenanceMode(enabled: boolean): void {
+    this.db
+      .prepare(
+        `INSERT INTO admin_settings (key, value, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = excluded.updated_at`,
+      )
+      .run("maintenance_mode", String(enabled), Date.now());
+  }
+
   updateAccount(
     id: string,
     input: {
@@ -534,6 +558,7 @@ export class LocalDataStore {
       createdAt: number;
     }[];
     productImages: { productId: string; mime: string; base64: string }[];
+    settings: { key: string; value: string; updatedAt: number }[];
   } {
     const warnings = this.db
       .prepare(
@@ -587,6 +612,23 @@ export class LocalDataStore {
             ]
           : [];
       }),
+      settings: this.db
+        .prepare(
+          "SELECT key, value, updated_at FROM admin_settings ORDER BY key",
+        )
+        .all()
+        .map((row) => {
+          const setting = row as {
+            key: string;
+            value: string;
+            updated_at: number;
+          };
+          return {
+            key: setting.key,
+            value: setting.value,
+            updatedAt: setting.updated_at,
+          };
+        }),
     };
   }
 

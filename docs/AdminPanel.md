@@ -10,12 +10,15 @@ worker.
   players. The online count includes active game connections only, not website
   visitors or empty lobbies. The memory card shows host RAM in use / total, not
   the sum of each Node.js worker's process memory.
-- **Users** shows players currently connected to active games and distinguishes
-  clients with token claims from guest sessions. It cannot show anonymous
-  website visitors or offline identities.
+- **Users** shows players currently connected to reachable active-game workers
+  and distinguishes clients with token claims from guest sessions. It also
+  lists every locally registered account, including accounts that are
+  currently offline. It cannot show anonymous website visitors or identities
+  in the separate closed-source account API.
 - **Reports** combines global-chat reports with player reports filed during
-  active games. Reports are written to SQLite as they are submitted and remain
-  available after a worker restart.
+  active games. The panel merges reports from every healthy worker and
+  de-duplicates shared-store results; reports are written to SQLite as they
+  are submitted and remain available after a worker restart.
 - **Accounts** creates local username/password accounts, shows their optional
   phone numbers, allows edits/deletion, records warnings, and enforces permanent
   or timed bans on login and game joins. Products can be manually granted to a
@@ -47,8 +50,9 @@ worker.
 - Accounts, products, categories, inventory, reports, warnings, bans, uploaded
   images, and application logs are stored on disk under `.admin-data/` (or
   `ADMIN_DATA_DIR`) using SQLite and local image files. Keep that directory
-  persistent and back it up; do not commit it to Git. The service account must
-  be able to write to the data directory.
+  persistent and back it up; all workers on the same server must use the same
+  data directory so the panel reads one authoritative database. Do not commit
+  it to Git. The service account must be able to write to the data directory.
 - **Server logs** displays persisted application logs from the database
   (retained up to 100,000 entries) and redacts credential-like fields and
   bearer/JWT strings. Public chat messages are logged for moderation; private
@@ -59,7 +63,7 @@ worker.
   development. The panel does not expose arbitrary shell commands or PM2 logs.
 - **Maintenance mode** requires confirmation, ends current games on each
   worker, and rejects new games until the administrator disables the mode.
-  The mode itself is held in process memory and resets when workers restart.
+  The setting is stored in SQLite and reloaded after worker restarts.
 
 Admin credentials are provided to each game worker with
 `ADMIN_PANEL_USERNAME`, `ADMIN_PANEL_PASSWORD_HASH`, and

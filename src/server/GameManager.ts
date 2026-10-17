@@ -37,7 +37,9 @@ export class GameManager {
     private readonly telemetry: MatchTelemetryEmitter = noopMatchTelemetryEmitter,
     private readonly telemetryBuildHash: string = "DEV",
     private readonly persistReport: (report: AdminGameReport) => void = () => {},
+    initialMaintenanceMode = false,
   ) {
+    this.maintenanceMode = initialMaintenanceMode;
     setInterval(() => this.tick(), 1000);
   }
 

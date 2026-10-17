@@ -157,25 +157,31 @@ describe("EventsDisplay handlers", () => {
       expect(rendered.strings.join("")).toContain("<section");
     });
 
-    it("shows a top news panel and reports a new land attack", () => {
-      myPlayer.incomingAttacks.mockReturnValue([
-        {
-          attacker: () => stranger,
-          troops: () => 5_000,
-        },
-      ]);
+    it("shows the news panel and reports new wars once", () => {
+      const attacker = { ...stranger, isPlayer: () => true };
+      const defender = {
+        ...friend,
+        incomingAttacks: () => [{ attackerID: attacker.smallID() }],
+        isFriendly: () => false,
+        tradeOffer: () => undefined,
+      };
+      byID[3] = attacker;
+      game.players = () => [defender];
 
+      ed.tick();
       ed.tick();
 
       expect(events()).toMatchObject([
         {
           description: expect.stringContaining(
-            "events_display.land_attack_inbound",
+            "events_display.war_report_attack",
           ),
           type: MessageType.ATTACK_REQUEST,
-          focusID: 3,
+          focusID: 2,
         },
       ]);
+      expect(events()[0].description).toContain("Stranger");
+      expect(events()[0].description).toContain("Friend");
       const rendered = (
         ed as unknown as { render: () => { strings: string[] } }
       ).render();

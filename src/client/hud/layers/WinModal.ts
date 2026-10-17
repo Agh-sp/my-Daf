@@ -72,6 +72,7 @@ export class WinModal extends LitElement implements Controller {
           ${this._title || ""}
         </h2>
         <div class="min-h-0 flex-1 overflow-y-auto pr-0.5">
+          ${this.renderSupportCallout()}
           ${this.innerHtml()}
         </div>
         <div class="mt-4 flex justify-between gap-2.5 shrink-0">
@@ -111,7 +112,6 @@ export class WinModal extends LitElement implements Controller {
     if (isInIframe()) {
       return this.discordDisplay();
     }
-
     if (!this.isWin && getGamesPlayed() < 3) {
       return this.renderYoutubeTutorial();
     }
@@ -120,6 +120,48 @@ export class WinModal extends LitElement implements Controller {
     } else {
       return this.renderPatternButton();
     }
+  }
+
+  private renderSupportCallout() {
+    return html`
+      <section
+        class="mb-4 overflow-hidden rounded-xl border border-amber-200/20 bg-gradient-to-br from-amber-500/15 via-slate-900/80 to-cyan-500/10 p-4 text-center shadow-lg shadow-amber-950/20"
+      >
+        <div
+          class="mx-auto mb-2 grid size-10 place-items-center rounded-full border border-amber-200/20 bg-amber-300/10 text-amber-200"
+          aria-hidden="true"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M20.8 8.6c0 5.4-8.8 10.2-8.8 10.2S3.2 14 3.2 8.6A4.6 4.6 0 0 1 12 6.3a4.6 4.6 0 0 1 8.8 2.3Z"
+            />
+          </svg>
+        </div>
+        <h3 class="text-base font-bold text-amber-100">
+          ${translateText("win_modal.support_title")}
+        </h3>
+        <p class="mx-auto mt-1 max-w-lg text-sm leading-6 text-slate-300">
+          ${translateText("win_modal.support_message")}
+        </p>
+        <a
+          href="https://daramet.com/middleeastdefense"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-amber-200/30 bg-amber-300 px-5 py-2 text-sm font-bold text-slate-950 no-underline shadow-md shadow-amber-950/20 transition hover:-translate-y-0.5 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-100"
+        >
+          ${translateText("donate")}
+          <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+    `;
   }
 
   renderYoutubeTutorial() {

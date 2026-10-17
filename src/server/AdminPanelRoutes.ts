@@ -256,6 +256,7 @@ export function registerAdminPanelRoutes({
     if (!parsed.success) {
       return res.status(400).json({ error: "enabled must be a boolean" });
     }
+    localDataStore?.setMaintenanceMode(parsed.data.enabled);
     await gm.setMaintenanceMode(parsed.data.enabled);
     log.warn("admin changed game maintenance mode", {
       enabled: parsed.data.enabled,
@@ -326,7 +327,7 @@ export function registerAdminPanelRoutes({
     ];
     localDataStore?.saveReports(currentReports);
     return res.json({
-      reports: (localDataStore?.listReports(workerId) ?? currentReports).sort(
+      reports: (localDataStore?.listReports() ?? currentReports).sort(
         (a, b) => b.createdAt - a.createdAt,
       ),
     });

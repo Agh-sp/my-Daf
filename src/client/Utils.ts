@@ -480,15 +480,24 @@ export const getGameName = (): string =>
     ? "دفاع خاورمیانه"
     : GAME_NAME;
 
-export const applyGameName = (message: string): string =>
-  message
-    .replace(/Middle East (?:Battle|Defend)/gi, getGameName())
-    .replace(/(?<![\w@./-])OpenFront(?:\.io)?(?![\w./-])/gi, getGameName())
-    .replace(/\bOpen ?Battle\b/gi, getGameName());
+export const applyGameName = (
+  message: string,
+  options?: { preserveOpenFront?: boolean },
+): string => {
+  let result = message.replace(/Middle East (?:Battle|Defend)/gi, getGameName());
+  if (!options?.preserveOpenFront) {
+    result = result.replace(
+      /(?<![\w@./-])OpenFront(?:\.io)?(?![\w./-])/gi,
+      getGameName(),
+    );
+  }
+  return result.replace(/\bOpen ?Battle\b/gi, getGameName());
+};
 
 export const translateText = (
   key: string,
   params?: Record<string, string | number>,
+  options?: { preserveOpenFront?: boolean },
 ): string => {
   if (key === "main.title") return getGameName();
 
@@ -528,7 +537,7 @@ export const translateText = (
     resolvedParams === EMPTY_TRANSLATION_PARAMS &&
     message.indexOf("{") === -1
   ) {
-    return applyGameName(message);
+    return applyGameName(message, options);
   }
 
   try {
@@ -544,10 +553,10 @@ export const translateText = (
       self.formatterCache.set(cacheKey, formatter);
     }
 
-    return applyGameName(formatter.format(resolvedParams) as string);
+    return applyGameName(formatter.format(resolvedParams) as string, options);
   } catch (e) {
     console.warn("ICU format error", e);
-    return applyGameName(message);
+    return applyGameName(message, options);
   }
 };
 

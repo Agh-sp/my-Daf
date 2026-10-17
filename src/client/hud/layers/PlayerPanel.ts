@@ -734,6 +734,9 @@ export class PlayerPanel extends LitElement implements Controller {
   }
 
   private renderStats(other: PlayerView, my: PlayerView) {
+    const tradingStopped =
+      my.hasEmbargoAgainst(other) || other.hasEmbargoAgainst(my);
+
     return html`
       <!-- Betrayals -->
       <div class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
@@ -759,7 +762,7 @@ export class PlayerPanel extends LitElement implements Controller {
         <div
           class="flex items-center justify-end gap-2 text-[14px] font-semibold"
         >
-          ${other.hasEmbargoAgainst(my)
+          ${tradingStopped
             ? html`<span class="text-amber-400"
                 >${translateText("player_panel.stopped")}</span
               >`

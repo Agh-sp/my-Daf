@@ -8,8 +8,6 @@ import type {
   SnapshotWriter,
 } from "../snapshot/SnapshotContext";
 
-const cancelDelay = 20;
-
 export class RetreatExecution implements Execution {
   private active = true;
   private retreatOrdered = false;
@@ -29,9 +27,6 @@ export class RetreatExecution implements Execution {
     if (!this.retreatOrdered) {
       this.player.orderRetreat(this.attackID);
       this.retreatOrdered = true;
-    }
-
-    if (this.mg.ticks() >= this.startTick + cancelDelay) {
       this.player.executeRetreat(this.attackID);
       this.active = false;
     }

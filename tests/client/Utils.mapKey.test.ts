@@ -1,6 +1,10 @@
 import { GameMapType, maps } from "@openfront/engine-api/game/GameTypes";
 import { describe, expect, it } from "vitest";
-import { normaliseMapKey, presenceMapKey } from "../../src/client/Utils";
+import {
+  applyGameName,
+  normaliseMapKey,
+  presenceMapKey,
+} from "../../src/client/Utils";
 
 describe("normaliseMapKey", () => {
   it("resolves tourney maps to their asset directory, not their display name", () => {
@@ -30,6 +34,17 @@ describe("presenceMapKey", () => {
   it("normalises a map name to its translation key", () => {
     expect(presenceMapKey(GameMapType.Europe)).toBe("europe");
     expect(presenceMapKey(GameMapType.Tourney1)).toBe("tourney1");
+  });
+
+  describe("applyGameName", () => {
+    it("can preserve the OpenFront attribution while replacing other product aliases", () => {
+      expect(
+        applyGameName(
+          "Inspired by OpenFront and Middle East Battle.",
+          { preserveOpenFront: true },
+        ),
+      ).toBe("Inspired by OpenFront and Middle East Defense.");
+    });
   });
 
   it("produces a key containing only characters Steam allows in a token", () => {
